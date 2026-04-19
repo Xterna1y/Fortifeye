@@ -20,8 +20,8 @@ const vertexAI = new VertexAI({ project, location });
 
 // ✅ ONLY valid + stable models
 const MODELS = [
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
 ];
 
 export const callGemini = async (prompt) => {
@@ -33,7 +33,8 @@ export const callGemini = async (prompt) => {
         model: modelName,
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 200, // 🔥 VERY IMPORTANT (cost control)
+          maxOutputTokens: 1024,
+          responseMimeType: "application/json",
         },
       });
 
@@ -58,57 +59,57 @@ export const callGemini = async (prompt) => {
 
       console.log(`✅ Success with model: ${modelName}`);
 
-      // Clean markdown JSON if present
-      const cleaned = text
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
+      // ✅ Robust JSON extraction
+      let cleaned = text;
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
 
-      // ✅ Safe JSON parsing
+      const createFallback = (rawText) => ({
+        risk_score: 50,
+        risk_level: "MEDIUM",
+        scam_detected: false,
+        patterns: ["parse_error"],
+        verdict: "Analysis partial",
+        reasons: ["The AI response was malformed or truncated."],
+        explanation: rawText || "The AI failed to provide a readable analysis.",
+        recommended_action: "warn",
+      });
+
       try {
-        return JSON.parse(cleaned);
-      } catch (parseErr) {
-        console.warn("⚠️ JSON parse failed, returning raw text");
+        const parsed = JSON.parse(cleaned);
+        // Ensure all required fields exist for the frontend
         return {
-          raw: cleaned,
-          note: "Model did not return valid JSON",
+          risk_score: parsed.risk_score ?? 50,
+          risk_level: parsed.risk_level ?? "MEDIUM",
+          scam_detected: parsed.scam_detected ?? false,
+          patterns: parsed.patterns ?? [],
+          verdict: parsed.verdict ?? "Analysis complete",
+          reasons: parsed.reasons ?? [],
+          explanation: parsed.explanation ?? text,
+          recommended_action: parsed.recommended_action ?? "warn",
         };
+      } catch (parseErr) {
+        console.warn("⚠️ JSON parse failed, returning safe structure");
+        return createFallback(text);
       }
     } catch (err) {
       const errMsg = err.message || String(err);
-
       console.warn(`❌ Model ${modelName} failed: ${errMsg}`);
-
-      // Helpful debugging logs
-      if (errMsg.includes("403") || errMsg.includes("Permission")) {
-        console.error("🔒 PERMISSION ISSUE:");
-        console.error("- Check IAM → add 'Vertex AI User'");
-      }
-
-      if (errMsg.includes("404")) {
-        console.error("📦 MODEL NOT FOUND:");
-        console.error("- Model name is invalid or not available");
-      }
-
-      if (errMsg.includes("<!DOCTYPE")) {
-        console.error("🌐 HTML ERROR RESPONSE:");
-        console.error("- Vertex API not enabled OR wrong region");
-      }
     }
   }
 
   // ❌ All models failed
-  console.error("🚨 All Vertex AI models failed. Returning fallback.");
-
+  console.error("🚨 All Vertex AI models failed. Returning emergency fallback.");
   return {
     risk_score: 50,
     risk_level: "MEDIUM",
     scam_detected: false,
     patterns: ["vertex_failure"],
     verdict: "AI analysis unavailable",
-    reasons: ["Vertex AI request failed"],
-    explanation:
-      "All model attempts failed due to configuration, permission, or model availability issues.",
+    reasons: ["Vertex AI request failed after all attempts"],
+    explanation: "The connection to Vertex AI was lost or the model failed to respond. Please check GCP status.",
     recommended_action: "warn",
   };
 };
