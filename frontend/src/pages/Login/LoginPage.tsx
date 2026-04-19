@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import logo from '../../assets/fortifeye_logo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -33,9 +34,11 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md mx-4">
         {/* Logo & Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-2xl shadow-lg shadow-cyan-500/25 mb-4">
-            <Shield className="w-10 h-10 text-white" />
-          </div>
+          <img
+            src={logo}
+            alt="Fortifeye logo"
+            className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover shadow-lg shadow-cyan-500/25"
+          />
           <h1 className="text-3xl font-bold text-white tracking-tight">Fortifeye</h1>
           <p className="text-slate-400 mt-2 text-sm">AI-Powered Scam Prevention</p>
         </div>

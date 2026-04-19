@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
-  Shield, 
+  Shield,
   Eye, 
   EyeOff, 
   DollarSign, 
@@ -9,14 +8,14 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Settings,
-  LogOut,
   Bell,
-  History,
   User,
   MessageSquare,
   Clock
 } from 'lucide-react';
+import GlassPanel from '../../components/ui/GlassPanel';
+import PageHeader from '../../components/ui/PageHeader';
+import SegmentedTabs from '../../components/ui/SegmentedTabs';
 
 interface Transaction {
   id: number;
@@ -35,9 +34,13 @@ interface Alert {
 }
 
 export default function ProtectedPersonPage() {
-  const navigate = useNavigate();
   const [showBalance, setShowBalance] = useState(false);
   const [activeTab, setActiveTab] = useState<'transactions' | 'alerts' | 'settings'>('transactions');
+  const tabs: Array<{ key: 'transactions' | 'alerts' | 'settings'; label: string }> = [
+    { key: 'transactions', label: 'My Transactions' },
+    { key: 'alerts', label: 'Alerts' },
+    { key: 'settings', label: 'Privacy Settings' },
+  ];
   
   // Mock data - in production this would come from a database
   const [transactions] = useState<Transaction[]>([
@@ -57,47 +60,11 @@ export default function ProtectedPersonPage() {
   const balance = 12500.00;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Top Navigation */}
-      <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo - Click to go home */}
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">Fortifeye</span>
-              <span className="ml-2 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">Protected</span>
-            </button>
-
-            {/* Right Side */}
-            <div className="flex items-center gap-4">
-              <button className="p-2 text-slate-400 hover:text-white transition-colors relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="text-sm">Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Welcome back, Sarah</h1>
-          <p className="text-slate-400 mt-1">Your account is protected by your guardian</p>
-        </div>
+      <div className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Welcome back, Sarah"
+          description="Your account is protected by your guardian."
+        />
 
         {/* Balance Card */}
         <div className="bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-2xl p-6 mb-6 relative overflow-hidden">
@@ -130,7 +97,7 @@ export default function ProtectedPersonPage() {
         </div>
 
         {/* Guardian Status Banner */}
-        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4 mb-6">
+        <GlassPanel padding="sm" className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
@@ -146,47 +113,15 @@ export default function ProtectedPersonPage() {
               <span className="text-emerald-400 text-sm">Active Protection</span>
             </div>
           </div>
-        </div>
+        </GlassPanel>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('transactions')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'transactions' 
-                ? 'bg-cyan-500 text-white' 
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            My Transactions
-          </button>
-          <button
-            onClick={() => setActiveTab('alerts')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'alerts' 
-                ? 'bg-cyan-500 text-white' 
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Alerts
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'settings' 
-                ? 'bg-cyan-500 text-white' 
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Privacy Settings
-          </button>
-        </div>
+        <SegmentedTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
         {/* Transactions Tab */}
         {activeTab === 'transactions' && (
           <div className="space-y-4">
             {transactions.map((transaction) => (
-              <div key={transaction.id} className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
+              <GlassPanel key={transaction.id} padding="sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
@@ -231,7 +166,7 @@ export default function ProtectedPersonPage() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
             ))}
           </div>
         )}
@@ -240,7 +175,7 @@ export default function ProtectedPersonPage() {
         {activeTab === 'alerts' && (
           <div className="space-y-4">
             {alerts.map((alert) => (
-              <div key={alert.id} className={`bg-slate-800/50 backdrop-blur-xl border rounded-xl p-4 ${
+              <GlassPanel key={alert.id} padding="sm" className={`${
                 alert.type === 'warning' ? 'border-amber-500/20' :
                 alert.type === 'success' ? 'border-emerald-500/20' :
                 'border-cyan-500/20'
@@ -264,7 +199,7 @@ export default function ProtectedPersonPage() {
                     <p className="text-slate-400 text-sm mt-1">{alert.timestamp}</p>
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
             ))}
           </div>
         )}
@@ -272,8 +207,7 @@ export default function ProtectedPersonPage() {
         {/* Privacy Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Your Privacy Controls</h2>
+            <GlassPanel title="Your Privacy Controls">
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
                   <div className="flex items-center gap-3">
@@ -312,11 +246,10 @@ export default function ProtectedPersonPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </GlassPanel>
 
             {/* Request to Guardian */}
-            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Contact Your Guardian</h2>
+            <GlassPanel title="Contact Your Guardian">
               <div className="space-y-4">
                 <button className="w-full flex items-center justify-center gap-2 p-4 bg-slate-900/50 hover:bg-slate-700/50 rounded-xl transition-colors">
                   <MessageSquare className="w-5 h-5 text-cyan-400" />
@@ -327,10 +260,9 @@ export default function ProtectedPersonPage() {
                   <span className="text-white">Request to Increase Spending Limit</span>
                 </button>
               </div>
-            </div>
+            </GlassPanel>
           </div>
         )}
       </div>
-    </div>
   );
 }

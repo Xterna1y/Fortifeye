@@ -1,21 +1,18 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
-  Shield, 
   Eye, 
-  EyeOff, 
   DollarSign, 
   Lock, 
   Unlock,
   AlertTriangle,
   CheckCircle,
   User,
-  Settings,
-  LogOut,
-  Bell,
-  History,
   Ban
 } from 'lucide-react';
+import GlassPanel from '../../components/ui/GlassPanel';
+import PageHeader from '../../components/ui/PageHeader';
+import SegmentedTabs from '../../components/ui/SegmentedTabs';
+import StatCard from '../../components/ui/StatCard';
 
 interface ProtectedPerson {
   id: number;
@@ -37,8 +34,12 @@ interface TransactionRequest {
 }
 
 export default function GuardianDashboardPage() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'settings'>('overview');
+  const tabs: Array<{ key: 'overview' | 'requests' | 'settings'; label: string }> = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'requests', label: 'Transaction Requests' },
+    { key: 'settings', label: 'Settings' },
+  ];
   
   // Mock data - in production this would come from a database
   const [protectedPeople] = useState<ProtectedPerson[]>([
@@ -65,136 +66,27 @@ export default function GuardianDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Top Navigation */}
-      <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo - Click to go home */}
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">Fortifeye</span>
-              <span className="ml-2 px-2 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-full">Guardian Mode</span>
-            </button>
+      <div className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Guardian Dashboard"
+          description="Monitor and protect your loved ones from financial scams."
+        />
 
-            {/* Right Side */}
-            <div className="flex items-center gap-4">
-              <button className="p-2 text-slate-400 hover:text-white transition-colors relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="text-sm">Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Guardian Dashboard</h1>
-          <p className="text-slate-400 mt-1">Monitor and protect your loved ones from financial scams</p>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'overview' 
-                ? 'bg-cyan-500 text-white' 
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'requests' 
-                ? 'bg-cyan-500 text-white' 
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Transaction Requests
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'settings' 
-                ? 'bg-cyan-500 text-white' 
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            Settings
-          </button>
-        </div>
+        <SegmentedTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
-                    <User className="w-6 h-6 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-400 text-sm">Protected</p>
-                    <p className="text-2xl font-bold text-white">{protectedPeople.length}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center">
-                    <AlertTriangle className="w-6 h-6 text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-400 text-sm">Pending</p>
-                    <p className="text-2xl font-bold text-white">{transactionRequests.filter(r => r.status === 'pending').length}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-400 text-sm">Approved</p>
-                    <p className="text-2xl font-bold text-white">{transactionRequests.filter(r => r.status === 'approved').length}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                    <Ban className="w-6 h-6 text-red-400" />
-                  </div>
-                  <div>
-                    <p className="text-slate-400 text-sm">Blocked</p>
-                    <p className="text-2xl font-bold text-white">3</p>
-                  </div>
-                </div>
-              </div>
+              <StatCard label="Protected" value={protectedPeople.length} icon={User} iconWrapperClassName="bg-cyan-500/20" iconClassName="text-cyan-400" />
+              <StatCard label="Pending" value={transactionRequests.filter(r => r.status === 'pending').length} icon={AlertTriangle} iconWrapperClassName="bg-amber-500/20" iconClassName="text-amber-400" />
+              <StatCard label="Approved" value={transactionRequests.filter(r => r.status === 'approved').length} icon={CheckCircle} iconWrapperClassName="bg-emerald-500/20" iconClassName="text-emerald-400" />
+              <StatCard label="Blocked" value={3} icon={Ban} iconWrapperClassName="bg-red-500/20" iconClassName="text-red-400" />
             </div>
 
             {/* Protected People List */}
-            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">People You Protect</h2>
+            <GlassPanel title="People You Protect">
               <div className="space-y-4">
                 {protectedPeople.map((person) => (
                   <div key={person.id} className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
@@ -230,15 +122,14 @@ export default function GuardianDashboardPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </GlassPanel>
           </div>
         )}
 
         {/* Transaction Requests Tab */}
         {activeTab === 'requests' && (
           <div className="space-y-6">
-            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Pending Transaction Requests</h2>
+            <GlassPanel title="Pending Transaction Requests">
               <div className="space-y-4">
                 {transactionRequests.filter(r => r.status === 'pending').map((request) => (
                   <div key={request.id} className="p-4 bg-slate-900/50 rounded-xl border border-amber-500/20">
@@ -274,11 +165,10 @@ export default function GuardianDashboardPage() {
                   <p className="text-slate-400 text-center py-8">No pending requests</p>
                 )}
               </div>
-            </div>
+            </GlassPanel>
 
             {/* Recent Activity */}
-            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Recent Activity</h2>
+            <GlassPanel title="Recent Activity">
               <div className="space-y-3">
                 {transactionRequests.filter(r => r.status !== 'pending').map((request) => (
                   <div key={request.id} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
@@ -301,15 +191,14 @@ export default function GuardianDashboardPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </GlassPanel>
           </div>
         )}
 
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Guardian Settings</h2>
+            <GlassPanel title="Guardian Settings">
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
                   <div className="flex items-center gap-3">
@@ -358,10 +247,9 @@ export default function GuardianDashboardPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </GlassPanel>
           </div>
         )}
       </div>
-    </div>
   );
 }

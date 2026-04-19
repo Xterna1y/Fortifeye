@@ -1,8 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Shield, 
-  ArrowLeft, 
   MessageSquare, 
   Mic, 
   MicOff,
@@ -12,6 +10,9 @@ import {
   XCircle,
   CheckCircle
 } from 'lucide-react';
+import GlassPanel from '../../components/ui/GlassPanel';
+import PageHeader from '../../components/ui/PageHeader';
+import SegmentedTabs from '../../components/ui/SegmentedTabs';
 
 type AnalysisMode = 'text' | 'voice';
 type AnalysisStatus = 'idle' | 'analyzing' | 'complete';
@@ -34,6 +35,10 @@ export default function InputPage() {
   const [result, setResult] = useState<MockResult | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
+  const modeTabs: Array<{ key: 'text' | 'voice'; label: string }> = [
+    { key: 'text', label: 'Text Analysis' },
+    { key: 'voice', label: 'Voice Analysis' },
+  ];
 
   const startRecording = async () => {
     try {
@@ -125,60 +130,25 @@ export default function InputPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="text-sm">Back</span>
+    <main className="max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Analyze Message or Call"
+          description="Paste suspicious text or record a voice clip and Fortifeye will score the risk instantly."
+          action={
+            <button
+            onClick={() => navigate('/dashboard')}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-700/70 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-slate-600 hover:text-white"
+          >
+            Back to Dashboard
             </button>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">Fortifeye</span>
-            </div>
-            
-            <div className="w-20"></div>
-          </div>
-        </div>
-      </header>
+          }
+        />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Mode Selection */}
-        <div className="flex items-center justify-center gap-4 mb-8">
-          <button
-            onClick={() => setMode('text')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              mode === 'text'
-                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:border-slate-600/50'
-            }`}
-          >
-            <MessageSquare className="w-5 h-5" />
-            Text Analysis
-          </button>
-          <button
-            onClick={() => setMode('voice')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              mode === 'voice'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:border-slate-600/50'
-            }`}
-          >
-            <Mic className="w-5 h-5" />
-            Voice Analysis
-          </button>
-        </div>
+        <SegmentedTabs activeTab={mode} onChange={setMode} tabs={modeTabs} className="justify-center" />
 
         {/* Input Area */}
-        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 mb-6">
+        <GlassPanel padding="lg" className="mb-6">
           <h2 className="text-xl font-semibold text-white mb-4">
             {mode === 'text' ? 'Enter Message to Analyze' : 'Record Voice Message'}
           </h2>
@@ -243,7 +213,7 @@ export default function InputPage() {
               </button>
             </div>
           )}
-        </div>
+        </GlassPanel>
 
         {/* Analyze Button */}
         <div className="flex justify-center mb-8">
@@ -268,7 +238,7 @@ export default function InputPage() {
 
         {/* Results Display */}
         {status === 'complete' && result && (
-          <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8">
+          <GlassPanel padding="lg">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-white">Analysis Results</h2>
               <div className={`px-4 py-2 rounded-xl border flex items-center gap-2 ${getActionColor(result.recommended_action)}`}>
@@ -352,9 +322,8 @@ export default function InputPage() {
                 Return to Dashboard
               </button>
             </div>
-          </div>
+          </GlassPanel>
         )}
       </main>
-    </div>
   );
 }

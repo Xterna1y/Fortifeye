@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Shield, 
+  Shield,
   AlertTriangle, 
   CheckCircle, 
   XCircle, 
   MessageSquare, 
   Mic, 
   Bell,
-  Settings,
-  LogOut,
-  User,
   Activity,
   TrendingUp,
   Eye
 } from 'lucide-react';
+import GlassPanel from '../../components/ui/GlassPanel';
+import PageHeader from '../../components/ui/PageHeader';
+import StatCard from '../../components/ui/StatCard';
 
 interface Alert {
   id: number;
@@ -25,7 +25,6 @@ interface Alert {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'analyze' | 'history'>('analyze');
   const [recentAlerts] = useState<Alert[]>([
     { id: 1, type: 'danger', message: 'High risk transaction detected', time: '2 min ago' },
     { id: 2, type: 'warning', message: 'Unusual login attempt blocked', time: '15 min ago' },
@@ -44,89 +43,26 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Top Navigation */}
-      <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">Fortifeye</span>
-            </div>
-
-            {/* Navigation Tabs */}
-            <nav className="hidden md:flex items-center gap-1">
-              <button
-                onClick={() => setActiveTab('analyze')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === 'analyze' 
-                    ? 'bg-cyan-500/20 text-cyan-400' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                }`}
-              >
-                Analyze
-              </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === 'history' 
-                    ? 'bg-cyan-500/20 text-cyan-400' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                }`}
-              >
-                History
-              </button>
-              <button
-                onClick={() => navigate('/guardian')}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-              >
-                Guardian Mode
-              </button>
-            </nav>
-
-            {/* Right Section */}
-            <div className="flex items-center gap-3">
-              <button className="relative p-2 text-slate-400 hover:text-white transition-colors">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              <button className="p-2 text-slate-400 hover:text-white transition-colors">
-                <Settings className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-2 pl-3 border-l border-slate-700">
-                <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome back!</h1>
-          <p className="text-slate-400">Your AI-powered financial guardian is always watching.</p>
-        </div>
+    <main className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Welcome back!"
+          description="Your AI-powered financial guardian is always watching."
+        />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {stats.map((stat, index) => (
-            <div 
+            <StatCard
               key={index}
-              className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-5 hover:border-slate-600/50 transition-all"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-              </div>
-              <p className="text-2xl font-bold text-white mb-1">{stat.value}</p>
-              <p className="text-slate-400 text-sm">{stat.label}</p>
-            </div>
+              label={stat.label}
+              value={stat.value}
+              icon={stat.icon}
+              iconClassName={stat.color}
+              iconWrapperClassName="bg-transparent"
+              valueClassName="mb-1"
+              className="backdrop-blur-sm"
+              trailing={<TrendingUp className="h-4 w-4 text-emerald-400" />}
+            />
           ))}
         </div>
 
@@ -134,7 +70,7 @@ export default function DashboardPage() {
           {/* Main Action Panel */}
           <div className="lg:col-span-2 space-y-6">
             {/* Quick Analyze Card */}
-            <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8">
+            <GlassPanel padding="lg" className="bg-gradient-to-br from-slate-800/80 to-slate-800/40">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
                   <Activity className="w-6 h-6 text-cyan-400" />
@@ -211,10 +147,10 @@ export default function DashboardPage() {
                   ))}
                 </div>
               </div>
-            </div>
+            </GlassPanel>
 
             {/* Risk Overview */}
-            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <GlassPanel className="backdrop-blur-sm">
               <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                 <Eye className="w-5 h-5 text-cyan-400" />
                 Risk Overview
@@ -234,16 +170,16 @@ export default function DashboardPage() {
                   <p className="text-slate-400 text-xs">Safe Score</p>
                 </div>
               </div>
-            </div>
+            </GlassPanel>
           </div>
 
           {/* Side Panel */}
           <div className="space-y-6">
             {/* Guardian Mode */}
-            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <GlassPanel className="backdrop-blur-sm">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-amber-400" />
+                  <Bell className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">Guardian Mode</h3>
@@ -253,10 +189,10 @@ export default function DashboardPage() {
               <button className="w-full py-3 bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500/30 text-amber-400 font-medium rounded-xl transition-all">
                 Configure Guardian
               </button>
-            </div>
+            </GlassPanel>
 
             {/* Quick Stats */}
-            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <GlassPanel className="backdrop-blur-sm">
               <h3 className="font-semibold text-white mb-4">Today's Summary</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -276,19 +212,18 @@ export default function DashboardPage() {
                   <span className="text-emerald-400 font-medium">8</span>
                 </div>
               </div>
-            </div>
+            </GlassPanel>
 
             {/* Tips Card */}
-            <div className="bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-2xl p-6">
+            <GlassPanel className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-emerald-500/10">
               <h3 className="font-semibold text-white mb-3">💡 Safety Tip</h3>
               <p className="text-slate-300 text-sm leading-relaxed">
                 Banks will never ask for your password or PIN via phone or message. 
                 Always verify requests through official channels.
               </p>
-            </div>
+            </GlassPanel>
           </div>
         </div>
       </main>
-    </div>
   );
 }
