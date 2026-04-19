@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
+  CircleAlert,
   MessageSquare, 
   Mic, 
   MicOff,
@@ -10,9 +11,13 @@ import {
   XCircle,
   CheckCircle
 } from 'lucide-react';
+import AlertBanner from '../../components/ui/AlertBanner';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
+import StatusBadge from '../../components/ui/StatusBadge';
 
 type AnalysisMode = 'text' | 'voice';
 type AnalysisStatus = 'idle' | 'analyzing' | 'complete';
@@ -33,6 +38,7 @@ export default function InputPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [status, setStatus] = useState<AnalysisStatus>('idle');
   const [result, setResult] = useState<MockResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
   const modeTabs: Array<{ key: 'text' | 'voice'; label: string }> = [
@@ -55,6 +61,7 @@ export default function InputPage() {
       }, 1000);
     } catch (error) {
       console.error('Failed to start recording:', error);
+      setErrorMessage('Microphone access failed. Check browser permissions and try again.');
     }
   };
 
@@ -70,8 +77,16 @@ export default function InputPage() {
   };
 
   const handleAnalyze = () => {
-    if (!text.trim() && !isRecording) return;
+    if (!text.trim() && !isRecording) {
+      setErrorMessage(
+        mode === 'text'
+          ? 'Paste a message before starting analysis.'
+          : 'Record a voice sample before starting analysis.',
+      );
+      return;
+    }
     
+    setErrorMessage(null);
     setStatus('analyzing');
     
     // Simulate AI analysis
@@ -135,12 +150,9 @@ export default function InputPage() {
           title="Analyze Message or Call"
           description="Paste suspicious text or record a voice clip and Fortifeye will score the risk instantly."
           action={
-            <button
-            onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-700/70 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-slate-600 hover:text-white"
-          >
-            Back to Dashboard
-            </button>
+            <Button variant="secondary" onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </Button>
           }
         />
 
@@ -157,7 +169,12 @@ export default function InputPage() {
             <div className="relative">
               <textarea
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  if (errorMessage) {
+                    setErrorMessage(null);
+                  }
+                }}
                 placeholder="Paste the suspicious message here... (e.g., 'Your account has been compromised. Transfer RM5000 immediately to secure your funds.')"
                 className="w-full h-48 px-4 py-4 bg-slate-900/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all resize-none"
               />
@@ -215,12 +232,34 @@ export default function InputPage() {
           )}
         </GlassPanel>
 
+        {errorMessage && (
+          <div className="mb-6">
+            <AlertBanner tone="error" title="Action needed">
+              {errorMessage}
+            </AlertBanner>
+          </div>
+        )}
+
+        {status === 'idle' && !result && (
+          <div className="mb-8">
+            <EmptyState
+              icon={CircleAlert}
+              title="No analysis yet"
+              description={
+                mode === 'text'
+                  ? 'Paste a suspicious message above and run the scan to see risk score, explanation, and recommended action.'
+                  : 'Record a voice sample above and run the scan to see risk score, explanation, and recommended action.'
+              }
+            />
+          </div>
+        )}
+
         {/* Analyze Button */}
         <div className="flex justify-center mb-8">
-          <button
+          <Button
             onClick={handleAnalyze}
             disabled={status === 'analyzing' || (mode === 'text' && !text.trim()) || (mode === 'voice' && !isRecording && recordingTime === 0)}
-            className="px-12 py-4 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-12 py-4 text-base font-semibold"
           >
             {status === 'analyzing' ? (
               <>
@@ -233,7 +272,7 @@ export default function InputPage() {
                 Analyze {mode === 'text' ? 'Text' : 'Recording'}
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Results Display */}
@@ -245,6 +284,27 @@ export default function InputPage() {
                 {getActionIcon(result.recommended_action)}
                 <span className="font-medium uppercase">{result.recommended_action}</span>
               </div>
+            </div>
+
+            <div className="mb-6">
+              <AlertBanner
+                tone={
+                  result.recommended_action === 'block'
+                    ? 'error'
+                    : result.recommended_action === 'warn'
+                      ? 'warning'
+                      : 'success'
+                }
+                title={
+                  result.recommended_action === 'block'
+                    ? 'High-risk scam indicators detected'
+                    : result.recommended_action === 'warn'
+                      ? 'Proceed carefully'
+                      : 'No strong scam indicators detected'
+                }
+              >
+                Recommended action: {result.recommended_action.toUpperCase()}.
+              </AlertBanner>
             </div>
 
             {/* Risk Score Gauge */}
@@ -291,12 +351,9 @@ export default function InputPage() {
                 <h3 className="text-white font-medium mb-3">Detected Patterns</h3>
                 <div className="flex flex-wrap gap-2">
                   {result.patterns.map((pattern, index) => (
-                    <span 
-                      key={index}
-                      className="px-3 py-1 bg-red-500/20 border border-red-500/30 text-red-400 text-sm rounded-full"
-                    >
+                    <StatusBadge key={index} tone="danger">
                       {pattern}
-                    </span>
+                    </StatusBadge>
                   ))}
                 </div>
               </div>
@@ -304,23 +361,25 @@ export default function InputPage() {
 
             {/* Action Buttons */}
             <div className="flex gap-4">
-              <button
+              <Button
                 onClick={() => {
                   setStatus('idle');
                   setResult(null);
                   setText('');
                   setRecordingTime(0);
+                  setErrorMessage(null);
                 }}
-                className="flex-1 py-3 bg-slate-700/50 border border-slate-600/30 text-white font-medium rounded-xl hover:bg-slate-700/70 transition-all"
+                variant="secondary"
+                fullWidth
               >
                 Analyze Another
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => navigate('/dashboard')}
-                className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-medium rounded-xl hover:from-cyan-400 hover:to-emerald-400 transition-all"
+                fullWidth
               >
                 Return to Dashboard
-              </button>
+              </Button>
             </div>
           </GlassPanel>
         )}

@@ -2,15 +2,21 @@ import { useState } from 'react';
 import {
   CheckCircle,
   Copy,
+  Fingerprint,
   Link2,
   MailPlus,
   Shield,
   UserRound,
   XCircle,
 } from 'lucide-react';
+import AlertBanner from '../../components/ui/AlertBanner';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
 import GlassPanel from '../../components/ui/GlassPanel';
+import InputField from '../../components/ui/InputField';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
+import StatusBadge from '../../components/ui/StatusBadge';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
 import type { GuardianRole } from '../../types/guardian';
 
@@ -44,6 +50,7 @@ export default function GuardianLinkSetupPage() {
   const [targetSerialInput, setTargetSerialInput] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackTone, setFeedbackTone] = useState<'success' | 'error'>('success');
+  const [inputError, setInputError] = useState<string | null>(null);
 
   const roleTabs: Array<{ key: GuardianRole; label: string }> = [
     { key: 'guardian', label: 'I am a Guardian' },
@@ -53,6 +60,7 @@ export default function GuardianLinkSetupPage() {
   const handleCopySerial = async () => {
     try {
       await navigator.clipboard.writeText(currentSerial);
+      setInputError(null);
       setFeedbackTone('success');
       setFeedback('Serial ID copied.');
     } catch {
@@ -64,11 +72,13 @@ export default function GuardianLinkSetupPage() {
   const handleSendRequest = () => {
     const result = sendRequest(targetSerialInput);
     if (!result.ok) {
+      setInputError(result.error ?? 'Unable to validate this serial ID.');
       setFeedbackTone('error');
       setFeedback(result.error ?? 'Unable to send request.');
       return;
     }
 
+    setInputError(null);
     setFeedbackTone('success');
     setFeedback(`Link request sent to ${targetSerialInput.trim().toUpperCase()}.`);
     setTargetSerialInput('');
@@ -135,14 +145,13 @@ export default function GuardianLinkSetupPage() {
             <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Your {currentRole} serial</p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-2xl font-bold tracking-[0.18em] text-white">{currentSerial}</p>
-              <button
-                type="button"
+              <Button
                 onClick={handleCopySerial}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700/70 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition-all hover:border-slate-600"
+                variant="secondary"
               >
                 <Copy className="h-4 w-4" />
                 Copy
-              </button>
+              </Button>
             </div>
           </div>
           <p className="mt-4 text-sm text-slate-400">
@@ -157,36 +166,27 @@ export default function GuardianLinkSetupPage() {
           description={`Enter the ${targetRole} serial ID for the other user and send the connection request.`}
         >
           <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                {targetRole === 'guardian' ? 'Guardian serial ID' : 'Dependent serial ID'}
-              </label>
-              <input
-                type="text"
-                value={targetSerialInput}
-                onChange={(event) => setTargetSerialInput(event.target.value.toUpperCase())}
-                placeholder={targetRole === 'guardian' ? 'GDN-ABC-123' : 'DEP-ABC-123'}
-                className="w-full rounded-xl border border-slate-600/60 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
-              />
-            </div>
-            <button
-              type="button"
+            <InputField
+              id="guardian-link-target-serial"
+              label={targetRole === 'guardian' ? 'Guardian serial ID' : 'Dependent serial ID'}
+              value={targetSerialInput}
+              onChange={(event) => setTargetSerialInput(event.target.value.toUpperCase())}
+              placeholder={targetRole === 'guardian' ? 'GDN-ABC-123' : 'DEP-ABC-123'}
+              helperText={`Because this account is set to ${currentRole}, you need a ${targetRole} serial here.`}
+              error={inputError ?? undefined}
+              leading={<Fingerprint className="h-4 w-4" />}
+            />
+            <Button
               onClick={handleSendRequest}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-3 font-semibold text-white transition-opacity hover:opacity-90"
+              fullWidth
             >
               <MailPlus className="h-5 w-5" />
               Send Link Request
-            </button>
+            </Button>
             {feedback && (
-              <div
-                className={`rounded-xl border px-4 py-3 text-sm ${
-                  feedbackTone === 'success'
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                    : 'border-red-500/30 bg-red-500/10 text-red-200'
-                }`}
-              >
+              <AlertBanner tone={feedbackTone === 'success' ? 'success' : 'error'}>
                 {feedback}
-              </div>
+              </AlertBanner>
             )}
           </div>
         </GlassPanel>
@@ -209,34 +209,40 @@ export default function GuardianLinkSetupPage() {
         <GlassPanel title="Incoming Requests" description="Requests sent to your current role/serial appear here.">
           <div className="space-y-4">
             {pendingIncomingRequests.length === 0 ? (
-              <p className="text-sm text-slate-400">No incoming requests for {currentSerial} right now.</p>
+              <EmptyState
+                icon={MailPlus}
+                title="No incoming requests"
+                description={`No one has sent a guardian linking request to ${currentSerial} yet. Once a request arrives, you can accept or decline it here.`}
+              />
             ) : (
               pendingIncomingRequests.map((request) => (
                 <div key={request.id} className="rounded-2xl border border-amber-500/20 bg-slate-900/50 p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="font-medium text-white">{request.requesterSerial}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-white">{request.requesterSerial}</p>
+                        <StatusBadge tone="warning">Pending</StatusBadge>
+                      </div>
                       <p className="mt-1 text-sm text-slate-400">
                         Requested on {formatTimestamp(request.createdAt)} as a {request.requesterRole}.
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
+                      <Button
                         onClick={() => acceptRequest(request.id)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600"
+                        className="px-4 py-2"
                       >
                         <CheckCircle className="h-4 w-4" />
                         Accept
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
                         onClick={() => declineRequest(request.id)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                        variant="danger"
+                        className="px-4 py-2"
                       >
                         <XCircle className="h-4 w-4" />
                         Decline
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -249,24 +255,31 @@ export default function GuardianLinkSetupPage() {
           <GlassPanel title="Linked Accounts" description="Accepted guardian/dependent links for your current role.">
             <div className="space-y-4">
               {linkedAccounts.length === 0 ? (
-                <p className="text-sm text-slate-400">No accepted links for this role yet.</p>
+                <EmptyState
+                  icon={Link2}
+                  title="No linked accounts yet"
+                  description="Accepted relationships will appear here after the other user approves your request or you approve theirs."
+                />
               ) : (
                 linkedAccounts.map((link) => (
                   <div key={link.requestId} className="rounded-2xl border border-emerald-500/20 bg-slate-900/50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-white">{link.serial}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-white">{link.serial}</p>
+                          <StatusBadge tone="success">Linked</StatusBadge>
+                        </div>
                         <p className="mt-1 text-sm text-slate-400">
                           Linked {formatTimestamp(link.linkedAt)} as a {link.role}.
                         </p>
                       </div>
-                      <button
-                        type="button"
+                      <Button
                         onClick={() => removeLink(link.requestId)}
-                        className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition-all hover:bg-red-500/20"
+                        variant="danger"
+                        className="px-3 py-2 text-xs"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))
@@ -277,7 +290,11 @@ export default function GuardianLinkSetupPage() {
           <GlassPanel title="Outgoing Requests" description="Requests you have already sent from this serial.">
             <div className="space-y-4">
               {pendingOutgoingRequests.length === 0 ? (
-                <p className="text-sm text-slate-400">No pending requests sent from {currentSerial}.</p>
+                <EmptyState
+                  icon={Link2}
+                  title="No outgoing requests"
+                  description={`You have not sent any guardian linking requests from ${currentSerial} yet. Use the form above to start one.`}
+                />
               ) : (
                 pendingOutgoingRequests.map((request) => (
                   <div key={request.id} className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4">
@@ -286,7 +303,10 @@ export default function GuardianLinkSetupPage() {
                         <Link2 className="h-5 w-5 text-cyan-300" />
                       </div>
                       <div>
-                        <p className="font-medium text-white">{request.targetSerial}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-white">{request.targetSerial}</p>
+                          <StatusBadge tone="info">Pending</StatusBadge>
+                        </div>
                         <p className="mt-1 text-sm text-slate-400">
                           Sent {formatTimestamp(request.createdAt)}. Awaiting response.
                         </p>

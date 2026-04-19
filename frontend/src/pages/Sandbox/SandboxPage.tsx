@@ -22,8 +22,12 @@ import {
   Trash2,
   Search
 } from 'lucide-react';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
 import GlassPanel from '../../components/ui/GlassPanel';
+import InputField from '../../components/ui/InputField';
 import PageHeader from '../../components/ui/PageHeader';
+import StatusBadge from '../../components/ui/StatusBadge';
 
 interface SandboxSession {
   id: string;
@@ -164,17 +168,18 @@ export default function SandboxPage() {
           description="Open suspicious links in an isolated browser session before they ever touch your real device environment."
           action={
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
+            <Button
               onClick={() => setShowHistory(!showHistory)}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
+              variant="secondary"
+              className={`${
                 showHistory
                   ? 'border-cyan-500/30 bg-cyan-500/15 text-cyan-300'
-                  : 'border-slate-700/60 bg-slate-900/40 text-slate-300 hover:border-slate-600 hover:text-white'
+                  : ''
               }`}
             >
               <History className="w-4 h-4" />
               {showHistory ? 'Hide History' : 'Show History'}
-            </button>
+            </Button>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5">
                 <Lock className="w-4 h-4 text-emerald-400" />
@@ -202,25 +207,24 @@ export default function SandboxPage() {
               </p>
               
               <div className="flex gap-3">
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
+                <div className="flex-1">
+                  <InputField
+                    id="sandbox-url"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="Enter URL (e.g., example.com)"
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 pl-10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                     onKeyDown={(e) => e.key === 'Enter' && handleOpenSandbox()}
+                    leading={<Globe className="h-4 w-4" />}
                   />
-                  <Globe className="w-5 h-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
-                <button
+                <Button
                   onClick={handleOpenSandbox}
                   disabled={!url.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-3 font-semibold"
                 >
                   <Shield className="w-5 h-5" />
                   Open in Sandbox
-                </button>
+                </Button>
               </div>
 
               {/* Security Features */}
@@ -270,14 +274,14 @@ export default function SandboxPage() {
                   
                   {/* Search */}
                   <div className="relative mb-3">
-                    <input
-                      type="text"
+                    <InputField
+                      id="history-search"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search history..."
-                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                      className="rounded-lg py-2 text-sm"
+                      leading={<Search className="h-4 w-4" />}
                     />
-                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
 
                   {/* History Stats */}
@@ -304,10 +308,11 @@ export default function SandboxPage() {
 
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {filteredHistory.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500">
-                        <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No history found</p>
-                      </div>
+                      <EmptyState
+                        icon={History}
+                        title="No history found"
+                        description="Previously opened links will appear here. Try opening a URL in the sandbox to start building history."
+                      />
                     ) : (
                       filteredHistory.map((item) => (
                         <button
@@ -322,9 +327,17 @@ export default function SandboxPage() {
                                 {item.url.replace('https://', '').replace('http://', '')}
                               </span>
                             </div>
-                            <span className={`px-2 py-0.5 rounded text-xs ${getHistoryStatusColor(item.status)}`}>
+                            <StatusBadge
+                              tone={
+                                item.status === 'safe'
+                                  ? 'success'
+                                  : item.status === 'blocked'
+                                    ? 'danger'
+                                    : 'warning'
+                              }
+                            >
                               {item.status}
-                            </span>
+                            </StatusBadge>
                           </div>
                           <div className="flex items-center gap-3 text-xs text-slate-500">
                             <span className="flex items-center gap-1">
@@ -350,7 +363,13 @@ export default function SandboxPage() {
                     Active Sessions
                   </h3>
                   <div className="space-y-2">
-                    {sessions.map((session) => (
+                    {sessions.length === 0 ? (
+                      <EmptyState
+                        icon={ExternalLink}
+                        title="No active sessions"
+                        description="Open a suspicious link and it will appear here as an isolated sandbox session."
+                      />
+                    ) : sessions.map((session) => (
                       <button
                         key={session.id}
                         onClick={() => {
@@ -398,13 +417,15 @@ export default function SandboxPage() {
                     ))}
                   </div>
 
-                  <button
+                  <Button
                     onClick={() => setShowUrlInput(true)}
-                    className="w-full mt-4 p-3 border-2 border-dashed border-slate-600 rounded-xl text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center justify-center gap-2"
+                    variant="ghost"
+                    fullWidth
+                    className="mt-4 border-2 border-dashed border-slate-600 py-3 text-slate-400 hover:border-slate-500"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Open New Link
-                  </button>
+                  </Button>
                 </>
               )}
             </GlassPanel>
@@ -509,10 +530,19 @@ export default function SandboxPage() {
                     </div>
                   )
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
-                    <Globe className="w-16 h-16 text-slate-600 mb-4" />
-                    <p className="text-white font-semibold">No Active Session</p>
-                    <p className="text-slate-400 text-sm mt-2">Enter a URL above to open it in the sandbox</p>
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900 px-6">
+                    <div className="w-full max-w-lg">
+                      <EmptyState
+                        icon={Globe}
+                        title="No active session"
+                        description="Enter a URL above to open it in the sandbox, or pick an existing session from the left panel."
+                        action={
+                          <Button variant="secondary" onClick={() => setShowUrlInput(true)}>
+                            Open New Link
+                          </Button>
+                        }
+                      />
+                    </div>
                   </div>
                 )}
               </div>

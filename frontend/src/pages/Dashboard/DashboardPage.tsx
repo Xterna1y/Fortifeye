@@ -12,6 +12,8 @@ import {
   TrendingUp,
   Eye
 } from 'lucide-react';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import StatCard from '../../components/ui/StatCard';
@@ -179,25 +181,16 @@ export default function DashboardPage() {
           <div className="space-y-6">
             {!hasGuardian && (
               <GlassPanel className="backdrop-blur-sm">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
-                    <Bell className="h-5 w-5 text-amber-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Guardian Mode</h3>
-                    <p className="text-xs text-slate-400">Add a trusted person to review risky activity</p>
-                  </div>
-                </div>
-                <p className="mb-4 text-sm leading-relaxed text-slate-300">
-                  Placeholder flow: link a guardian to this account so they can help approve or block suspicious actions later.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate('/guardian-link')}
-                  className="w-full rounded-xl border border-amber-500/30 bg-amber-500/20 py-3 font-medium text-amber-300 transition-all hover:bg-amber-500/30"
-                >
-                  Configure Guardian
-                </button>
+                <EmptyState
+                  icon={Bell}
+                  title="No guardian linked yet"
+                  description="Link a trusted guardian so high-risk actions can be reviewed instead of handled alone."
+                  action={
+                    <Button variant="secondary" onClick={() => navigate('/guardian-link')}>
+                      Configure Guardian
+                    </Button>
+                  }
+                />
               </GlassPanel>
             )}
 
