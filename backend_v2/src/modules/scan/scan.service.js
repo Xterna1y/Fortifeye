@@ -1,0 +1,51 @@
+import { buildPrompt } from "../ai/promptBuilder.js";
+import { callGemini } from "../ai/gemini.service.js";
+import { readData, writeData } from "../../config/db.js";
+import { v4 as uuid } from "uuid";
+
+export const scanText = async (text) => {
+  const prompt = buildPrompt("text", { text });
+
+  const aiResult = await callGemini(prompt);
+
+  const scans = readData("scans");
+
+  const newScan = {
+    id: uuid(),
+    type: "text",
+    input: text,
+    ...aiResult,
+    createdAt: new Date().toISOString(),
+  };
+
+  scans.push(newScan);
+  writeData("scans", scans);
+
+  return newScan;
+};
+
+export const scanUrl = async (url) => {
+  const prompt = buildPrompt("url", { url });
+
+  const aiResult = await callGemini(prompt);
+
+  const scans = readData("scans");
+
+  const newScan = {
+    id: uuid(),
+    type: "url",
+    input: url,
+    ...aiResult,
+    createdAt: new Date().toISOString(),
+  };
+
+  scans.push(newScan);
+  writeData("scans", scans);
+
+  return newScan;
+};
+
+export const getScan = (id) => {
+  const scans = readData("scans");
+  return scans.find((s) => s.id === id);
+};

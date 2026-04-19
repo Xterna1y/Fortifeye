@@ -1,0 +1,34 @@
+[
+  {
+    "id": "04479175-935c-4670-8873-438e59d35ce3",
+    "type": "text",
+    "risk_score": 85,
+    "risk_level": "HIGH",
+    "scam_detected": true,
+    "patterns": [
+      "urgency"
+    ],
+    "reasons": [
+      "Message creates urgency"
+    ],
+    "explanation": "Likely scam",
+    "recommended_action": "block",
+    "createdAt": "2026-04-17T13:32:26.233Z"
+  },
+  {
+    "id": "123ff1be-e6e5-4993-a0bc-d3d391a2119f",
+    "type": "text",
+    "risk_score": 85,
+    "risk_level": "HIGH",
+    "scam_detected": true,
+    "patterns": [
+      "urgency"
+    ],
+    "reasons": [
+      "Message creates urgency"
+    ],
+    "explanation": "Likely scam",
+    "recommended_action": "block",
+    "createdAt": "2026-04-19T02:36:36.319Z"
+  }
+]
