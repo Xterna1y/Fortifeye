@@ -1,7 +1,9 @@
 export const validateAIResponse = (data) => {
   return (
     data &&
-    ["LOW", "MEDIUM", "HIGH"].includes(data.risk_level) &&
-    ["allow", "warn", "block"].includes(data.recommended_action)
+    ["safe", "suspicious", "dangerous"].includes(data.risk_level) &&
+    typeof data.risk_score === "number" &&
+    typeof data.verdict === "string" &&
+    typeof data.recommended_action === "string"
   );
 };
