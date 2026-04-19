@@ -28,7 +28,7 @@ export const createSession = async ({
     device_type,
     session_mode,
     user_id,
-    created_at: now.toISOString(),
+    createdAt: now.toISOString(),
     expires_at: expiresAt.toISOString(),
     terminated_at: null,
     events: [],
