@@ -136,5 +136,476 @@
     "explanation": "This message exhibits a critical combination of high-risk scam indicators. The sender attempts to create extreme fear and urgency, while simultaneously impersonating a trusted authority (Google) to demand sensitive credentials (OTP code). The direct threat of violence is an aggressive and clear attempt at psychological manipulation. Providing the requested OTP code would almost certainly lead to immediate financial fraud or account compromise. The presence of multiple strong manipulation patterns, including a direct threat, authority impersonation, and an OTP request, flags this message as a severe scam attempt.",
     "recommended_action": "block",
     "createdAt": "2026-04-19T04:26:54.502Z"
+  },
+  {
+    "id": "e5db4b77-ebc8-4e81-8dc1-b1f48e050524",
+    "type": "url",
+    "input": "https://www.apkmirror.com/",
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [],
+    "verdict": "The URL appears legitimate. No common phishing indicators were detected.",
+    "reasons": [],
+    "explanation": "The submitted URL 'https://www.apkmirror.com/' uses a domain that is widely recognized as a legitimate source for Android application package (APK) files. The URL is not shortened, obfuscated, or a raw IP address. There are no suspicious keywords such as 'login' or 'verify', nor does it exhibit signs of impersonation or domain mismatch. While the page title is 'Unknown', this is not sufficient evidence to classify it as misleading or alarming in a malicious context, especially given the established reputation of the domain. No strong indicators of phishing, financial harvesting, or credential theft were identified.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T04:37:17.728Z"
+  },
+  {
+    "id": "b67153b0-ed80-4f26-b3fc-d1574b000f4d",
+    "type": "url",
+    "input": "http://verify-bank-login.com",
+    "risk_score": 95,
+    "risk_level": "HIGH",
+    "scam_detected": true,
+    "patterns": [
+      "phishing intent",
+      "impersonation",
+      "suspicious domain",
+      "credential harvesting"
+    ],
+    "verdict": "The link is highly malicious, exhibiting strong phishing and impersonation tactics to harvest user credentials for financial gain.",
+    "reasons": [
+      "The domain 'verify-bank-login.com' contains strong phishing keywords ('verify', 'bank', 'login') directly in its name, indicating an attempt to deceive users.",
+      "The domain is generic and does not match any legitimate financial institution's official website, clearly indicating impersonation of a trusted entity (a bank).",
+      "The URL's structure strongly suggests an intent to create a fake login page to harvest sensitive financial or personal credentials.",
+      "The 'Unknown' page title, while not directly malicious, is an additional red flag for a page attempting to mimic a critical financial service."
+    ],
+    "explanation": "This URL is highly malicious and represents a clear phishing attempt. It is designed to impersonate a bank's login portal through a deceptive domain to steal user credentials. All indicators point to a high-risk financial scam.",
+    "recommended_action": "block",
+    "createdAt": "2026-04-19T04:38:14.431Z"
+  },
+  {
+    "id": "1ef9fab4-3432-4fe4-85bb-7980987f82ec",
+    "type": "url",
+    "input": "https://www.apkmirror.com/#google_vignette",
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [],
+    "verdict": "The URL is associated with a legitimate software repository and shows no signs of malicious intent.",
+    "reasons": [],
+    "explanation": "The domain 'apkmirror.com' is a widely recognized and legitimate website for downloading Android application packages (APKs). The URL uses HTTPS, indicating a secure connection. There are no indicators of phishing keywords, domain impersonation, obfuscation, or financial/credential harvesting intent. While the page title is 'Unknown', this is not a strong enough signal on its own to suggest malicious activity, especially when other strong indicators are absent and the domain is legitimate.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T04:39:28.607Z"
+  },
+  {
+    "id": "0357f01a-7ccd-47f4-a14b-097f02cc58c3",
+    "type": "url",
+    "input": "https://www.apkmirror.com/",
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [],
+    "verdict": "The link appears legitimate.",
+    "reasons": [
+      "The domain 'apkmirror.com' is a well-known and legitimate source for Android application packages.",
+      "The submitted URL perfectly matches the current URL, indicating no redirection or manipulation.",
+      "No evidence of phishing keywords, suspicious domain, obfuscation, or impersonation."
+    ],
+    "explanation": "The provided URL points to apkmirror.com, a widely recognized and trusted platform for downloading APKs. The domain is legitimate, matches the visited URL, and shows no signs of malicious intent, obfuscation, or impersonation. While the page title is reported as 'Unknown', this alone does not indicate a scam given the overall legitimacy of the domain and lack of other suspicious indicators.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T04:39:44.403Z"
+  },
+  {
+    "id": "638be80a-c90c-419e-8a6f-1805fbeabe46",
+    "type": "url",
+    "input": "https://www.wikipedia.org/",
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [],
+    "verdict": "The URL points to the official Wikipedia website and shows no signs of malicious intent.",
+    "reasons": [],
+    "explanation": "The submitted URL uses the legitimate 'wikipedia.org' domain. There are no indications of phishing keywords, domain mismatch, impersonation, or obfuscation. While the page title is 'Unknown', in the context of a legitimate URL, this is not considered a strong risk indicator and does not suggest malicious intent.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T04:44:37.955Z"
+  },
+  {
+    "id": "308b8bdd-7196-4cbf-bd7e-d1a04a688bab",
+    "type": "url",
+    "input": "https://www.apkmirror.com/",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T04:45:37.199Z"
+  },
+  {
+    "id": "ef2c5c13-29a4-46ff-8565-08ec0fef7587",
+    "type": "text",
+    "input": "i am nigga from google, i need you to claim your credits NOW",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T04:52:35.772Z"
+  },
+  {
+    "id": "2bc333fd-12c4-427e-abad-2730191bc14b",
+    "type": "text",
+    "input": "give me money now, i am from UN\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T04:53:55.671Z"
+  },
+  {
+    "id": "ee5aa5f1-cb5b-4c85-981c-3c7e482a5ca4",
+    "type": "text",
+    "input": "test",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T04:55:14.684Z"
+  },
+  {
+    "id": "ba1d4a25-9f5a-48d0-b106-0b1ef108b20b",
+    "type": "text",
+    "input": "give me money now, i am from UN\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T04:58:04.104Z"
+  },
+  {
+    "id": "0c5a63b3-ad00-446a-b7be-bb5e3a9b922a",
+    "type": "text",
+    "input": "give me money now, i am from UN\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T04:58:44.475Z"
+  },
+  {
+    "id": "76c5c8dd-1777-44c3-bbb1-83049d5d0320",
+    "type": "text",
+    "input": "test",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T04:58:49.593Z"
+  },
+  {
+    "id": "47acd1a0-454a-4ac3-9f5f-c4cfa0281da6",
+    "type": "text",
+    "input": "give me money now, i am from UN\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:03:09.824Z"
+  },
+  {
+    "id": "21656e99-5390-4fb3-86f6-99abd6215834",
+    "type": "text",
+    "input": "give me money now, i am from UN\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:03:55.589Z"
+  },
+  {
+    "id": "8c448e63-df2e-4846-9c0e-42e69062ddd0",
+    "type": "text",
+    "input": "give me money now, i am from UN\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:03:57.459Z"
+  },
+  {
+    "id": "bf68d64e-e433-4319-b34b-e9cdb9316974",
+    "type": "text",
+    "input": "test",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:05:26.523Z"
+  },
+  {
+    "id": "cda4189f-e246-4552-8b49-c8e09b7c96d8",
+    "type": "text",
+    "input": "test",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:06:44.875Z"
+  },
+  {
+    "id": "4a50f84b-83db-4ec1-8477-5cc2609987a7",
+    "type": "text",
+    "input": "test",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:07:04.440Z"
+  },
+  {
+    "id": "71866dc0-2df6-4b63-91b9-5283dfa10cfa",
+    "type": "text",
+    "input": "test",
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [],
+    "verdict": "The message does not contain identifiable scam indicators.",
+    "reasons": [
+      "The message lacks any keywords or phrases commonly associated with urgency or immediate action demands.",
+      "There are no explicit or implicit requests for personal credentials, financial information, or one-time passcodes.",
+      "The message does not impersonate any known authority, such as a bank, government agency, or law enforcement.",
+      "No financial pressure or coercion, such as demands for payments or transfers, is present in the content."
+    ],
+    "explanation": "The provided message \"test\" is extremely brief and generic. It does not contain any of the typical manipulation patterns or suspicious elements that would indicate a scam, such as urgency, fear tactics, impersonation of authority, requests for financial information, or attempts to obtain credentials. Therefore, it is assessed as having a low risk of being a scam.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T05:07:59.277Z"
+  },
+  {
+    "id": "bd3dfd5f-8e94-42e6-8141-adec07208b4d",
+    "type": "text",
+    "input": "give me money now, i am from UN\n",
+    "risk_score": 85,
+    "risk_level": "HIGH",
+    "scam_detected": true,
+    "patterns": [
+      "financial_pressure",
+      "authority_impersonation",
+      "urgency"
+    ],
+    "verdict": "The message is highly likely a scam due to multiple strong manipulation patterns.",
+    "reasons": [
+      "The message impersonates a reputable authority (United Nations) to establish false credibility.",
+      "It directly demands money ('give me money'), exerting financial pressure on the recipient.",
+      "The use of 'now' attempts to create urgency, pressuring immediate action without time for verification."
+    ],
+    "explanation": "This message exhibits a high scam risk as it combines three critical manipulation tactics. It attempts to impersonate the United Nations to leverage perceived authority, then directly demands money, which constitutes financial coercion. The addition of 'now' further creates a false sense of urgency, pressuring the recipient to comply immediately. This combination of authority impersonation, financial pressure, and urgency is a hallmark of sophisticated phishing and scam attempts designed to bypass user judgment.",
+    "recommended_action": "block",
+    "createdAt": "2026-04-19T05:08:43.217Z"
+  },
+  {
+    "id": "db87af73-9f3d-4a1b-8b0b-33042b7d7977",
+    "type": "text",
+    "input": "Type: “Bank account compromised” scam\n\nCaller (Scammer):\nHello, this is Daniel from the fraud department at your bank. We’ve detected suspicious transactions on your account.\n\nVictim:\nOh, really? What kind of transactions?\n\nCaller:\nSeveral overseas charges just now. We need to act quickly or your account may be locked. Can you confirm your full name and IC number?\n\nVictim:\nUh… okay, my name is—\n\nCaller:\nThank you. For verification, I’m sending you a one-time password (OTP). Please read it back to me immediately so we can stop the transaction.\n\nVictim:\nI just got it… it says 482913.\n\nCaller:\nGot it. We’re securing your account now. Just to finalize, can you confirm your card number and expiry date?\n\nVictim:\nWait… why do you need that?\n\nCaller (more urgent tone):\nSir, if we don’t complete this now, your account could lose thousands of ringgit. Please cooperate.\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:09:43.203Z"
+  },
+  {
+    "id": "ce1b75e7-c04a-422b-a29d-abc9666a0186",
+    "type": "text",
+    "input": "Type: “Bank account compromised” scam\n\nCaller (Scammer):\nHello, this is Daniel from the fraud department at your bank. We’ve detected suspicious transactions on your account.\n\nVictim:\nOh, really? What kind of transactions?\n\nCaller:\nSeveral overseas charges just now. We need to act quickly or your account may be locked. Can you confirm your full name and IC number?\n\nVictim:\nUh… okay, my name is—\n\nCaller:\nThank you. For verification, I’m sending you a one-time password (OTP). Please read it back to me immediately so we can stop the transaction.\n\nVictim:\nI just got it… it says 482913.\n\nCaller:\nGot it. We’re securing your account now. Just to finalize, can you confirm your card number and expiry date?\n\nVictim:\nWait… why do you need that?\n\nCaller (more urgent tone):\nSir, if we don’t complete this now, your account could lose thousands of ringgit. Please cooperate.\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:09:52.211Z"
+  },
+  {
+    "id": "32a280bb-c2c2-42ca-ac96-f9935fd6dd82",
+    "type": "text",
+    "input": "Type: “Bank account compromised” scam\n\nCaller (Scammer):\nHello, this is Daniel from the fraud department at your bank. We’ve detected suspicious transactions on your account.\n\nVictim:\nOh, really? What kind of transactions?\n\nCaller:\nSeveral overseas charges just now. We need to act quickly or your account may be locked. Can you confirm your full name and IC number?\n\nVictim:\nUh… okay, my name is—\n\nCaller:\nThank you. For verification, I’m sending you a one-time password (OTP). Please read it back to me immediately so we can stop the transaction.\n\nVictim:\nI just got it… it says 482913.\n\nCaller:\nGot it. We’re securing your account now. Just to finalize, can you confirm your card number and expiry date?\n\nVictim:\nWait… why do you need that?\n\nCaller (more urgent tone):\nSir, if we don’t complete this now, your account could lose thousands of ringgit. Please cooperate.\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:12:12.617Z"
+  },
+  {
+    "id": "4242030c-b7e6-4f9f-8f82-82f0a366d786",
+    "type": "text",
+    "input": "Type: “Bank account compromised” scam\n\nCaller (Scammer):\nHello, this is Daniel from the fraud department at your bank. We’ve detected suspicious transactions on your account.\n\nVictim:\nOh, really? What kind of transactions?\n\nCaller:\nSeveral overseas charges just now. We need to act quickly or your account may be locked. Can you confirm your full name and IC number?\n\nVictim:\nUh… okay, my name is—\n\nCaller:\nThank you. For verification, I’m sending you a one-time password (OTP). Please read it back to me immediately so we can stop the transaction.\n\nVictim:\nI just got it… it says 482913.\n\nCaller:\nGot it. We’re securing your account now. Just to finalize, can you confirm your card number and expiry date?\n\nVictim:\nWait… why do you need that?\n\nCaller (more urgent tone):\nSir, if we don’t complete this now, your account could lose thousands of ringgit. Please cooperate.\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:12:16.011Z"
+  },
+  {
+    "id": "9647aebb-aa28-477e-aeff-38f987cbd609",
+    "type": "text",
+    "input": "Type: “Bank account compromised” scam\n\nCaller (Scammer):\nHello, this is Daniel from the fraud department at your bank. We’ve detected suspicious transactions on your account.\n\nVictim:\nOh, really? What kind of transactions?\n\nCaller:\nSeveral overseas charges just now. We need to act quickly or your account may be locked. Can you confirm your full name and IC number?\n\nVictim:\nUh… okay, my name is—\n\nCaller:\nThank you. For verification, I’m sending you a one-time password (OTP). Please read it back to me immediately so we can stop the transaction.\n\nVictim:\nI just got it… it says 482913.\n\nCaller:\nGot it. We’re securing your account now. Just to finalize, can you confirm your card number and expiry date?\n\nVictim:\nWait… why do you need that?\n\nCaller (more urgent tone):\nSir, if we don’t complete this now, your account could lose thousands of ringgit. Please cooperate.\n",
+    "risk_score": 50,
+    "risk_level": "MEDIUM",
+    "scam_detected": false,
+    "patterns": [
+      "fallback_triggered"
+    ],
+    "verdict": "AI analysis failed, fallback applied.",
+    "reasons": [
+      "Unable to process AI response or malformed JSON"
+    ],
+    "explanation": "The AI analysis encountered an error. Proceed with caution.",
+    "recommended_action": "warn",
+    "createdAt": "2026-04-19T05:12:23.506Z"
+  },
+  {
+    "id": "205ac489-d978-4d3f-b101-10ee35ae85c6",
+    "type": "text",
+    "input": "i am from public bank, give me your password now\n",
+    "risk_score": 90,
+    "risk_level": "HIGH",
+    "scam_detected": true,
+    "patterns": [
+      "authority impersonation",
+      "credential_request",
+      "urgency"
+    ],
+    "verdict": "This message is a highly likely scam attempt.",
+    "reasons": [
+      "The sender is impersonating 'public bank' to establish false authority.",
+      "The message explicitly requests the user's password, a critical credential legitimate banks never ask for via text.",
+      "The demand for action 'now' creates artificial urgency, pressuring the recipient."
+    ],
+    "explanation": "This message combines three strong indicators of a scam. By impersonating a bank, the sender attempts to gain the recipient's trust. The direct request for a password is a critical red flag, as financial institutions will never ask for such sensitive information through unsecure channels like text messages. The addition of 'now' further elevates risk by creating a sense of urgency, intended to rush the user into divulging credentials before they can critically assess the request. This pattern is characteristic of phishing scams designed to compromise user accounts.",
+    "recommended_action": "block",
+    "createdAt": "2026-04-19T05:12:46.123Z"
   }
 ]

@@ -22,6 +22,7 @@ import {
   Trash2,
   Search
 } from 'lucide-react';
+import { scanUrl } from '../../services/api';
 
 interface SandboxSession {
   id: string;
@@ -29,6 +30,9 @@ interface SandboxSession {
   status: 'loading' | 'active' | 'blocked' | 'error';
   startTime: string;
   blockedElements?: number;
+  aiExplanation?: string;
+  aiPatterns?: string[];
+  forceOpen?: boolean;
 }
 
 interface HistoryItem {
@@ -63,12 +67,14 @@ export default function SandboxPage() {
   ]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleOpenSandbox = () => {
+  const handleOpenSandbox = async () => {
     if (!url.trim()) return;
+    
+    const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
     
     const newSession: SandboxSession = {
       id: Date.now().toString(),
-      url: url.startsWith('http') ? url : `https://${url}`,
+      url: formattedUrl,
       status: 'loading',
       startTime: 'Just now',
       blockedElements: 0
@@ -79,25 +85,37 @@ export default function SandboxPage() {
     setUrl('');
     setShowUrlInput(false);
     
-    // Simulate loading
-    setTimeout(() => {
-      const blockedCount = Math.floor(Math.random() * 5) + 1;
+    try {
+      // Analyze the URL with the Gemini AI
+      const aiResult = await scanUrl(formattedUrl);
+      const isHighRisk = aiResult.risk_level === 'HIGH';
+      
       setSessions(prev => prev.map(s => 
         s.id === newSession.id 
-          ? { ...s, status: 'active', blockedElements: blockedCount }
+          ? { 
+              ...s, 
+              status: isHighRisk ? 'blocked' : 'active', 
+              aiExplanation: aiResult.explanation,
+              aiPatterns: aiResult.patterns
+            }
           : s
       ));
       
       // Add to history
       const newHistoryItem: HistoryItem = {
         id: newSession.id,
-        url: newSession.url,
+        url: formattedUrl,
         timestamp: 'Just now',
-        blockedElements: blockedCount,
-        status: blockedCount > 3 ? 'blocked' : blockedCount > 0 ? 'warning' : 'safe'
+        blockedElements: isHighRisk ? 1 : 0,
+        status: isHighRisk ? 'blocked' : 'safe'
       };
       setHistory(prev => [newHistoryItem, ...prev]);
-    }, 2000);
+    } catch (error) {
+      console.error('Failed to scan URL:', error);
+      setSessions(prev => prev.map(s => 
+        s.id === newSession.id ? { ...s, status: 'error' } : s
+      ));
+    }
   };
 
   const handleCloseSession = (id: string) => {
@@ -153,6 +171,12 @@ export default function SandboxPage() {
       case 'warning': return <AlertTriangle className="w-4 h-4 text-orange-400" />;
       default: return null;
     }
+  };
+
+  const handleForceOpen = (id: string) => {
+    setSessions(prev => prev.map(s => 
+      s.id === id ? { ...s, forceOpen: true } : s
+    ));
   };
 
   return (
@@ -464,57 +488,62 @@ export default function SandboxPage() {
                       <p className="text-slate-400">Initializing secure sandbox...</p>
                       <p className="text-slate-500 text-sm mt-2">Running in isolated environment</p>
                     </div>
-                  ) : currentSession.status === 'active' ? (
-                    <div className="h-full flex flex-col">
+                  ) : currentSession.status === 'active' || (currentSession.status === 'blocked' && currentSession.forceOpen) ? (
+                    <div className="h-full flex flex-col relative">
                       <div className="bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-red-500" />
                         <div className="w-2 h-2 rounded-full bg-yellow-500" />
                         <div className="w-2 h-2 rounded-full bg-green-500" />
                       </div>
-                      <div className="flex-1 p-8 overflow-auto">
-                        <div className="max-w-2xl mx-auto">
-                          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                                <Shield className="w-6 h-6 text-white" />
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-bold text-slate-900">Sandbox Environment</h3>
-                                <p className="text-sm text-slate-500">This page is running in isolation</p>
-                              </div>
-                            </div>
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
-                                <CheckCircle className="w-5 h-5 text-emerald-500" />
-                                <span className="text-emerald-700 text-sm">Cookies are blocked</span>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
-                                <CheckCircle className="w-5 h-5 text-emerald-500" />
-                                <span className="text-emerald-700 text-sm">JavaScript execution is sandboxed</span>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
-                                <CheckCircle className="w-5 h-5 text-emerald-500" />
-                                <span className="text-emerald-700 text-sm">Your real IP address is hidden</span>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
-                                <AlertTriangle className="w-5 h-5 text-orange-500" />
-                                <span className="text-orange-700 text-sm">{currentSession.blockedElements} malicious elements blocked</span>
-                              </div>
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-slate-200">
-                              <p className="text-sm text-slate-500">
-                                <strong>Original URL:</strong> {currentSession.url}
-                              </p>
-                            </div>
+                      
+                      {/* Red Warning Banner Overlay */}
+                      {currentSession.status === 'blocked' && (
+                        <div className="bg-red-500 text-white px-4 py-3 shadow-lg z-10 flex flex-col items-center text-center">
+                          <div className="flex items-center gap-2 font-bold text-lg mb-1">
+                            <AlertTriangle className="w-5 h-5" />
+                            HIGH RISK SCAM DETECTED
                           </div>
+                          <p className="text-sm max-w-3xl">{currentSession.aiExplanation}</p>
                         </div>
+                      )}
+                      
+                      {/* Iframe View */}
+                      <div className="flex-1 bg-white">
+                        <iframe 
+                          src={currentSession.url} 
+                          className="w-full h-full border-none" 
+                          sandbox="allow-scripts allow-same-origin"
+                          title="Sandbox Browser"
+                        />
                       </div>
                     </div>
                   ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 px-6 text-center">
                       <XCircle className="w-16 h-16 text-red-500 mb-4" />
-                      <p className="text-white font-semibold">Page Blocked</p>
-                      <p className="text-slate-400 text-sm mt-2">This URL was flagged as potentially malicious</p>
+                      <p className="text-red-400 font-bold text-2xl mb-2">SCAM DETECTED & BLOCKED</p>
+                      <p className="text-white text-lg mt-2 font-medium">This URL was flagged as malicious by AI</p>
+                      
+                      {currentSession.aiExplanation && (
+                        <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4 max-w-lg text-left">
+                          <p className="text-slate-300 text-sm leading-relaxed">{currentSession.aiExplanation}</p>
+                          {currentSession.aiPatterns && currentSession.aiPatterns.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {currentSession.aiPatterns.map(pattern => (
+                                <span key={pattern} className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-lg">
+                                  {pattern}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <button 
+                        onClick={() => handleForceOpen(currentSession.id)}
+                        className="mt-8 px-6 py-2 border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-sm"
+                      >
+                        I understand the risk. Open Anyway.
+                      </button>
                     </div>
                   )
                 ) : (

@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Placeholder API Key if not present
-const apiKey = process.env.GEMINI_API_KEY || "AIzaSy_PLACEHOLDER_KEY_FOR_HACKATHON";
+const apiKey = process.env.GEMINI_API_KEY;
 
 // Instantiate the SDK
 const ai = new GoogleGenAI({ apiKey });
@@ -42,7 +42,7 @@ export const callGemini = async (prompt) => {
 
 export const analyzeSandboxRisk = async (input) => {
   const prompt = buildPrompt("sandbox", input);
-  
+
   const aiResult = await callGemini(prompt);
 
   return {
