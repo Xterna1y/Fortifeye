@@ -52,3 +52,11 @@ export const register = async (userData) => {
   const docRef = await usersRef.add(newUser);
   return { id: docRef.id, ...newUser };
 };
+
+export const getProfile = async (userId) => {
+  const userDoc = await db.collection("users").doc(userId).get();
+  if (!userDoc.exists) {
+    return null;
+  }
+  return { id: userDoc.id, ...userDoc.data() };
+};

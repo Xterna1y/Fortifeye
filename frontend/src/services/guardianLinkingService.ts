@@ -128,9 +128,13 @@ export const guardianLinkingService = {
       if (response.ok) {
         // Refresh user info in localStorage because identity might have changed
         const user = getUser();
-        // Since we don't have a getProfile endpoint yet, we manually update it
-        // Or we could fetch user doc from backend if we had an endpoint.
-        // For now, let's just assume identity might change.
+        if (user) {
+          const profileRes = await fetch(`http://localhost:5001/api/auth/profile/${user.id}`);
+          const updatedUser = await profileRes.json();
+          if (profileRes.ok) {
+            localStorage.setItem('fortifeye.user', JSON.stringify(updatedUser));
+          }
+        }
       }
       
       return response.ok;

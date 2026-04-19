@@ -17,6 +17,19 @@ export const login = async (req, res) => {
   }
 };
 
+export const getProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await authService.getProfile(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const register = async (req, res) => {
   try {
     const { email, name, role, identity } = req.body;
