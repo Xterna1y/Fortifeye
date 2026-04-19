@@ -130,7 +130,7 @@ export default function InputPage() {
   };
 
   return (
-    <main className="max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           title="Analyze Message or Call"
           description="Paste suspicious text or record a voice clip and Fortifeye will score the risk instantly."

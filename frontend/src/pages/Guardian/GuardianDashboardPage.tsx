@@ -66,7 +66,7 @@ export default function GuardianDashboardPage() {
   };
 
   return (
-      <div className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           title="Guardian Dashboard"
           description="Monitor and protect your loved ones from financial scams."
