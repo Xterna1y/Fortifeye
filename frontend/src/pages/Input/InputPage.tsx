@@ -77,18 +77,6 @@ export default function InputPage() {
 
     try {
       if (mode === 'text') {
-<<<<<<< HEAD
-        const aiResult = await scanText(text);
-        setResult(aiResult);
-        setStatus('complete');
-      } else {
-        // Voice mode logic placeholder
-        setStatus('idle');
-      }
-    } catch (error) {
-      console.error("Failed to analyze:", error);
-      setStatus('idle');
-=======
         const response = await fetch('http://localhost:5001/api/scan/text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -110,7 +98,6 @@ export default function InputPage() {
       alert('An error occurred during analysis. Please make sure the backend is running.');
     } finally {
       setStatus('complete');
->>>>>>> origin/hg
     }
   };
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run fix && nodemon server.js",
     "start": "node server.js",
-    "fix": "kill-port 5002"
+    "fix": "kill-port 5001 5002"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
