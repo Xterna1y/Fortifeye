@@ -12,3 +12,22 @@ export const login = async (email) => {
   const userDoc = snapshot.docs[0];
   return { id: userDoc.id, ...userDoc.data() };
 };
+
+export const register = async (userData) => {
+  const usersRef = db.collection("users");
+  
+  // Check if user already exists
+  const snapshot = await usersRef.where("email", "==", userData.email).get();
+  if (!snapshot.empty) {
+    throw new Error("User with this email already exists");
+  }
+
+  // Add new user
+  const newUser = {
+    ...userData,
+    createdAt: new Date().toISOString(),
+  };
+
+  const docRef = await usersRef.add(newUser);
+  return { id: docRef.id, ...newUser };
+};
