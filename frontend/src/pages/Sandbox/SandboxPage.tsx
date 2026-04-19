@@ -406,15 +406,15 @@ export default function SandboxPage() {
                             )}
                           </div>
                         </div>
-                        <button
+                        <div
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCloseSession(session.id);
                           }}
-                          className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                          className="p-1 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
                         >
                           <X className="w-4 h-4" />
-                        </button>
+                        </div>
                       </div>
                     </button>
                   ))}

@@ -1,53 +1,72 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { buildPrompt } from "./promptBuilder.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Placeholder API Key if not present
 const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.error("CRITICAL: GEMINI_API_KEY is not set in .env!");
+}
 
-// Instantiate the SDK
-const ai = new GoogleGenAI({ apiKey });
+const genAI = new GoogleGenerativeAI(apiKey);
+
+// Models confirmed available for this API key (v1beta)
+const MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+];
 
 export const callGemini = async (prompt) => {
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      },
-    });
+  for (const modelName of MODELS) {
+    try {
+      console.log(`Trying model: ${modelName}...`);
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: { responseMimeType: "application/json" },
+      });
 
-    // Extract the text and parse the JSON since the prompt enforces strict JSON
-    const resultText = response.text;
-    const parsedResult = JSON.parse(resultText);
-    return parsedResult;
-  } catch (error) {
-    console.error("Gemini AI error:", error);
-    // Fallback Condition as specified in the prompt
-    return {
-      risk_score: 50,
-      risk_level: "MEDIUM",
-      scam_detected: false,
-      patterns: ["fallback_triggered"],
-      verdict: "AI analysis failed, fallback applied.",
-      reasons: ["Unable to process AI response or malformed JSON"],
-      explanation: "The AI analysis encountered an error. Proceed with caution.",
-      recommended_action: "warn"
-    };
+      const result = await model.generateContent(prompt);
+      const resultText = result.response.text();
+
+      console.log(`✅ Success with model: ${modelName}`);
+      console.log("Raw response (first 200 chars):", resultText?.slice(0, 200));
+
+      const cleaned = resultText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+      return JSON.parse(cleaned);
+    } catch (err) {
+      const errMsg = err.message || String(err);
+      console.warn(`❌ Model ${modelName} failed: ${errMsg}`);
+      if (errMsg.includes("400") || errMsg.includes("API key")) {
+        console.error("⚠️  API key may be invalid. Check your .env file!");
+        console.error("Current key starts with:", process.env.GEMINI_API_KEY?.slice(0, 10));
+      }
+    }
   }
+
+  // All models failed
+  console.error("All Gemini models failed. Returning fallback.");
+  return {
+    risk_score: 50,
+    risk_level: "MEDIUM",
+    scam_detected: false,
+    patterns: ["fallback_triggered"],
+    verdict: "AI analysis failed, fallback applied.",
+    reasons: ["All AI models unavailable or quota exceeded."],
+    explanation: "The AI analysis encountered an error. Proceed with caution.",
+    recommended_action: "warn",
+  };
 };
 
 export const analyzeSandboxRisk = async (input) => {
   const prompt = buildPrompt("sandbox", input);
-
   const aiResult = await callGemini(prompt);
-
   return {
     ...aiResult,
     generated_at: new Date().toISOString(),
-    model: "gemini-2.5-flash",
   };
 };

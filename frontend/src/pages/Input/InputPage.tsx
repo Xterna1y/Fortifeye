@@ -13,6 +13,7 @@ import {
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
+import { scanText } from '../../services/api';
 
 type AnalysisMode = 'text' | 'voice';
 type AnalysisStatus = 'idle' | 'analyzing' | 'complete';
