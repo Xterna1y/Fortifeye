@@ -1,12 +1,12 @@
 import * as scanService from "./scan.service.js";
 
 export const scanText = async (req, res) => {
-  const result = await scanService.scanText(req.body.text);
+  const result = await scanService.scanText(req.body.text, req.body.userId);
   res.json(result);
 };
 
 export const scanUrl = async (req, res) => {
-  const result = await scanService.scanUrl(req.body.url);
+  const result = await scanService.scanUrl(req.body.url, req.body.userId);
   res.json(result);
 };
 
