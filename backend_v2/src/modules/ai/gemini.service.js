@@ -1,63 +1,114 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { VertexAI } from "@google-cloud/vertexai";
 import { buildPrompt } from "./promptBuilder.js";
 import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config();
 
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.error("CRITICAL: GEMINI_API_KEY is not set in .env!");
+// Resolve credentials path
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve(
+    process.env.GOOGLE_APPLICATION_CREDENTIALS
+  );
 }
 
-const genAI = new GoogleGenerativeAI(apiKey);
+const project = process.env.GOOGLE_CLOUD_PROJECT;
+const location = process.env.GOOGLE_CLOUD_LOCATION || "us-central1";
 
-// Models confirmed available for this API key (v1beta)
+// Initialize Vertex AI
+const vertexAI = new VertexAI({ project, location });
+
+// ✅ ONLY valid + stable models
 const MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
 ];
 
 export const callGemini = async (prompt) => {
   for (const modelName of MODELS) {
     try {
-      console.log(`Trying model: ${modelName}...`);
-      const model = genAI.getGenerativeModel({
+      console.log(`🚀 Trying Vertex AI model (${location}): ${modelName}`);
+
+      const generativeModel = vertexAI.getGenerativeModel({
         model: modelName,
-        generationConfig: { responseMimeType: "application/json" },
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 200, // 🔥 VERY IMPORTANT (cost control)
+        },
       });
 
-      const result = await model.generateContent(prompt);
-      const resultText = result.response.text();
+      const request = {
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+      };
+
+      const result = await generativeModel.generateContent(request);
+      const response = result.response;
+
+      const text =
+        response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      if (!text) {
+        throw new Error("Empty response from Vertex AI");
+      }
 
       console.log(`✅ Success with model: ${modelName}`);
-      console.log("Raw response (first 200 chars):", resultText?.slice(0, 200));
 
-      const cleaned = resultText
+      // Clean markdown JSON if present
+      const cleaned = text
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
         .trim();
-      return JSON.parse(cleaned);
+
+      // ✅ Safe JSON parsing
+      try {
+        return JSON.parse(cleaned);
+      } catch (parseErr) {
+        console.warn("⚠️ JSON parse failed, returning raw text");
+        return {
+          raw: cleaned,
+          note: "Model did not return valid JSON",
+        };
+      }
     } catch (err) {
       const errMsg = err.message || String(err);
+
       console.warn(`❌ Model ${modelName} failed: ${errMsg}`);
-      if (errMsg.includes("400") || errMsg.includes("API key")) {
-        console.error("⚠️  API key may be invalid. Check your .env file!");
-        console.error("Current key starts with:", process.env.GEMINI_API_KEY?.slice(0, 10));
+
+      // Helpful debugging logs
+      if (errMsg.includes("403") || errMsg.includes("Permission")) {
+        console.error("🔒 PERMISSION ISSUE:");
+        console.error("- Check IAM → add 'Vertex AI User'");
+      }
+
+      if (errMsg.includes("404")) {
+        console.error("📦 MODEL NOT FOUND:");
+        console.error("- Model name is invalid or not available");
+      }
+
+      if (errMsg.includes("<!DOCTYPE")) {
+        console.error("🌐 HTML ERROR RESPONSE:");
+        console.error("- Vertex API not enabled OR wrong region");
       }
     }
   }
 
-  // All models failed
-  console.error("All Gemini models failed. Returning fallback.");
+  // ❌ All models failed
+  console.error("🚨 All Vertex AI models failed. Returning fallback.");
+
   return {
     risk_score: 50,
     risk_level: "MEDIUM",
     scam_detected: false,
-    patterns: ["fallback_triggered"],
-    verdict: "AI analysis failed, fallback applied.",
-    reasons: ["All AI models unavailable or quota exceeded."],
-    explanation: "The AI analysis encountered an error. Proceed with caution.",
+    patterns: ["vertex_failure"],
+    verdict: "AI analysis unavailable",
+    reasons: ["Vertex AI request failed"],
+    explanation:
+      "All model attempts failed due to configuration, permission, or model availability issues.",
     recommended_action: "warn",
   };
 };
@@ -65,6 +116,7 @@ export const callGemini = async (prompt) => {
 export const analyzeSandboxRisk = async (input) => {
   const prompt = buildPrompt("sandbox", input);
   const aiResult = await callGemini(prompt);
+
   return {
     ...aiResult,
     generated_at: new Date().toISOString(),

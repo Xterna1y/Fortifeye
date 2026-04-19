@@ -6,6 +6,20 @@ import { getGuardianForUser } from "../guardian/guardian.service.js";
 import { createAlert } from "../alerts/alert.service.js";
 
 const COLLECTION = "sandboxSessions";
+const memoryStorage = new Map();
+
+const getCollection = () => {
+  if (db) return db.collection(COLLECTION);
+  return {
+    doc: (id) => ({
+      set: async (data) => memoryStorage.set(id, data),
+      get: async () => ({
+        exists: memoryStorage.has(id),
+        data: () => memoryStorage.get(id)
+      })
+    })
+  };
+};
 
 const createSandboxUrl = (sessionId) =>
   `https://sandbox.example.com/session/${sessionId}`;
@@ -37,7 +51,7 @@ export const createSession = async ({
     verdict: null,
   };
 
-  await db.collection(COLLECTION).doc(sessionId).set(session);
+  await getCollection().doc(sessionId).set(session);
 
   return {
     session_id: session.session_id,
@@ -48,7 +62,7 @@ export const createSession = async ({
 };
 
 export const getSessionById = async (sessionId) => {
-  const doc = await db.collection(COLLECTION).doc(sessionId).get();
+  const doc = await getCollection().doc(sessionId).get();
   if (!doc.exists) {
     throw createHttpError(404, "Sandbox session not found");
   }
@@ -61,7 +75,7 @@ export const terminateSession = async (sessionId) => {
   session.status = "terminated";
   session.terminated_at = new Date().toISOString();
 
-  await db.collection(COLLECTION).doc(sessionId).set(session);
+  await getCollection().doc(sessionId).set(session);
   return session;
 };
 
@@ -98,7 +112,7 @@ export const addEvent = async (sessionId, payload) => {
 
   session.events.push(event);
 
-  await db.collection(COLLECTION).doc(sessionId).set(session);
+  await getCollection().doc(sessionId).set(session);
   return event;
 };
 
@@ -159,7 +173,7 @@ export const saveVerdict = async (sessionId, verdict) => {
     }
   }
 
-  await db.collection(COLLECTION).doc(sessionId).set(session);
+  await getCollection().doc(sessionId).set(session);
   return verdict;
 };
 

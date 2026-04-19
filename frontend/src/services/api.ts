@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5002/api";
+const BASE_URL = "http://localhost:5001/api";
 
 export async function openSandbox(url: string) {
   const res = await fetch(`${BASE_URL}/sandbox/open`, {

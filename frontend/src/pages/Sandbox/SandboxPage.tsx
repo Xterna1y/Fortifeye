@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
-import { scanUrl } from '../../services/api';
+import { scanUrl, openSandbox } from '../../services/api';
 
 interface SandboxSession {
   id: string;
@@ -88,7 +88,10 @@ export default function SandboxPage() {
     setShowUrlInput(false);
 
     try {
-      // Analyze the URL with the Gemini AI
+      // 1. Initialize a real sandbox session in the backend
+      const sandboxData = await openSandbox(formattedUrl);
+      
+      // 2. Analyze the URL with the Gemini AI
       const aiResult = await scanUrl(formattedUrl);
       const isHighRisk = aiResult.risk_level === 'HIGH';
 
@@ -96,6 +99,7 @@ export default function SandboxPage() {
         s.id === newSession.id
           ? {
             ...s,
+            id: sandboxData.session_id || s.id, // Update with real session ID
             status: isHighRisk ? 'blocked' : 'active',
             aiExplanation: aiResult.explanation,
             aiPatterns: aiResult.patterns
@@ -103,9 +107,14 @@ export default function SandboxPage() {
           : s
       ));
 
+      // Update active session if it matches the temporary ID
+      if (activeSession === newSession.id) {
+        setActiveSession(sandboxData.session_id || newSession.id);
+      }
+
       // Add to history
       const newHistoryItem: HistoryItem = {
-        id: newSession.id,
+        id: sandboxData.session_id || newSession.id,
         url: formattedUrl,
         timestamp: 'Just now',
         blockedElements: isHighRisk ? 1 : 0,
@@ -450,6 +459,13 @@ export default function SandboxPage() {
                     {currentSession?.url || 'No session active'}
                   </span>
                 </div>
+                {currentSession && (
+                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${currentSession.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                    }`}>
+                    <Shield className="w-3 h-3" />
+                    {currentSession.status === 'active' ? 'Isolated & Secure' : 'High Risk Content'}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -496,12 +512,13 @@ export default function SandboxPage() {
                     )}
 
                     {/* Iframe View */}
-                    <div className="flex-1 bg-white">
+                    <div className="flex-1 bg-white overflow-hidden">
                       <iframe
                         src={currentSession.url}
                         className="w-full h-full border-none"
-                        sandbox="allow-scripts allow-same-origin"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                         title="Sandbox Browser"
+                        loading="lazy"
                       />
                     </div>
                   </div>
