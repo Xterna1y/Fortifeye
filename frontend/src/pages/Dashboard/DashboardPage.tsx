@@ -15,6 +15,7 @@ import {
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import StatCard from '../../components/ui/StatCard';
+import useGuardianLinking from '../../hooks/useGuardianLinking';
 
 interface Alert {
   id: number;
@@ -25,6 +26,7 @@ interface Alert {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { hasGuardian } = useGuardianLinking();
   const [recentAlerts] = useState<Alert[]>([
     { id: 1, type: 'danger', message: 'High risk transaction detected', time: '2 min ago' },
     { id: 2, type: 'warning', message: 'Unusual login attempt blocked', time: '15 min ago' },
@@ -43,7 +45,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           title="Welcome back!"
           description="Your AI-powered financial guardian is always watching."
@@ -175,21 +177,50 @@ export default function DashboardPage() {
 
           {/* Side Panel */}
           <div className="space-y-6">
-            {/* Guardian Mode */}
-            <GlassPanel className="backdrop-blur-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
-                  <Bell className="w-5 h-5 text-amber-400" />
+            {useGuardianLinking().pendingIncomingRequests.length > 0 && (
+              <GlassPanel className="border-amber-500/30 bg-amber-500/10">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
+                    <Bell className="h-5 w-5 text-amber-400 animate-bounce" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Link Request</h3>
+                    <p className="text-xs text-slate-400">You have a new connection request</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white">Guardian Mode</h3>
-                  <p className="text-slate-400 text-xs">Protect your loved ones</p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/guardian-link')}
+                  className="w-full rounded-xl bg-amber-500 py-3 font-medium text-white transition-all hover:bg-amber-600"
+                >
+                  View Requests
+                </button>
+              </GlassPanel>
+            )}
+
+            {!hasGuardian && (
+              <GlassPanel className="backdrop-blur-sm">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
+                    <Bell className="h-5 w-5 text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Guardian Mode</h3>
+                    <p className="text-xs text-slate-400">Add a trusted person to review risky activity</p>
+                  </div>
                 </div>
-              </div>
-              <button className="w-full py-3 bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500/30 text-amber-400 font-medium rounded-xl transition-all">
-                Configure Guardian
-              </button>
-            </GlassPanel>
+                <p className="mb-4 text-sm leading-relaxed text-slate-300">
+                  Placeholder flow: link a guardian to this account so they can help approve or block suspicious actions later.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/guardian-link')}
+                  className="w-full rounded-xl border border-amber-500/30 bg-amber-500/20 py-3 font-medium text-amber-300 transition-all hover:bg-amber-500/30"
+                >
+                  Configure Guardian
+                </button>
+              </GlassPanel>
+            )}
 
             {/* Quick Stats */}
             <GlassPanel className="backdrop-blur-sm">

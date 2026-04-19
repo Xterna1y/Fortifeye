@@ -1,15 +1,20 @@
+import admin from "firebase-admin";
 import fs from "fs";
 import path from "path";
+import { FIREBASE_SERVICE_ACCOUNT_PATH } from "./env.js";
 
-const dataPath = path.resolve("src/data");
+// Ensure the path is resolved properly
+const serviceAccountPath = path.resolve(FIREBASE_SERVICE_ACCOUNT_PATH);
 
-export const readData = (fileName) => {
-  const file = path.join(dataPath, `${fileName}.json`);
-  const data = fs.readFileSync(file, "utf-8");
-  return JSON.parse(data);
-};
+if (!fs.existsSync(serviceAccountPath)) {
+  console.error(`Firebase service account file not found at ${serviceAccountPath}`);
+  process.exit(1);
+}
 
-export const writeData = (fileName, data) => {
-  const file = path.join(dataPath, `${fileName}.json`);
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-};
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+export const db = admin.firestore();

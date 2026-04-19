@@ -5,20 +5,49 @@ import logo from '../../assets/fortifeye_logo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
-    // Simulate login - in production, this would connect to Firebase Auth
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const endpoint = isLoginMode 
+        ? 'http://localhost:5001/api/auth/login' 
+        : 'http://localhost:5001/api/auth/register';
+      
+      const payload = {
+        email,
+        password, // Backend currently only checks email, but we send this anyway
+        ...(isLoginMode ? {} : { name: "New User", role: "user" })
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Authentication failed');
+      }
+
+      // Success! Store user in localStorage
+      localStorage.setItem('fortifeye.user', JSON.stringify(data));
       navigate('/dashboard');
-    }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during authentication');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -53,7 +82,14 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl text-sm text-center">
+                {error}
+              </div>
+            )}
+
             {/* Email Input */}
             <div>
               <label className="block text-slate-300 text-sm font-medium mb-2">Email</label>
@@ -89,19 +125,21 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember & Forgot */}
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
-                />
-                <span className="text-slate-400">Remember me</span>
-              </label>
-              <button type="button" className="text-cyan-400 hover:text-cyan-300 transition-colors">
-                Forgot password?
-              </button>
-            </div>
+            {/* Remember & Forgot (Only on Login) */}
+            {isLoginMode && (
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-900/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
+                  />
+                  <span className="text-slate-400">Remember me</span>
+                </label>
+                <button type="button" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -112,13 +150,29 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Authenticating...</span>
+                  <span>{isLoginMode ? 'Authenticating...' : 'Creating Account...'}</span>
                 </>
               ) : (
-                <span>Sign In</span>
+                <span>{isLoginMode ? 'Sign In' : 'Create Account'}</span>
               )}
             </button>
           </form>
+
+          {/* Mode Toggle */}
+          <div className="mt-6 text-center text-sm">
+            <span className="text-slate-400">
+              {isLoginMode ? "Don't have an account? " : "Already have an account? "}
+            </span>
+            <button 
+              onClick={() => {
+                setIsLoginMode(!isLoginMode);
+                setError(null);
+              }}
+              className="text-cyan-400 hover:text-cyan-300 transition-colors font-medium"
+            >
+              {isLoginMode ? 'Sign up' : 'Sign in'}
+            </button>
+          </div>
 
           {/* Divider */}
           <div className="flex items-center gap-4 my-6">

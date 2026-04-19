@@ -60,7 +60,7 @@ export default function ProtectedPersonPage() {
   const balance = 12500.00;
 
   return (
-      <div className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <PageHeader
           title="Welcome back, Sarah"
           description="Your account is protected by your guardian."

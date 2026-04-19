@@ -77,6 +77,7 @@ export default function InputPage() {
 
     try {
       if (mode === 'text') {
+<<<<<<< HEAD
         const aiResult = await scanText(text);
         setResult(aiResult);
         setStatus('complete');
@@ -87,6 +88,29 @@ export default function InputPage() {
     } catch (error) {
       console.error("Failed to analyze:", error);
       setStatus('idle');
+=======
+        const response = await fetch('http://localhost:5001/api/scan/text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to analyze text');
+        }
+
+        const data = await response.json();
+        setResult(data);
+      } else {
+        // Voice analysis is currently just a placeholder
+        alert("Voice analysis is not yet connected to the backend.");
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
+      alert('An error occurred during analysis. Please make sure the backend is running.');
+    } finally {
+      setStatus('complete');
+>>>>>>> origin/hg
     }
   };
 

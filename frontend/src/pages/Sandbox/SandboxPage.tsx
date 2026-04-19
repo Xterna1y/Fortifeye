@@ -182,12 +182,21 @@ export default function SandboxPage() {
   };
 
   return (
+<<<<<<< HEAD
     <div className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Secure Sandbox"
         description="Open suspicious links in an isolated browser session before they ever touch your real device environment."
         action={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+=======
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Secure Sandbox"
+          description="Open suspicious links in an isolated browser session before they ever touch your real device environment."
+          action={
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+>>>>>>> origin/hg
             <button
               onClick={() => setShowHistory(!showHistory)}
               className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${showHistory
