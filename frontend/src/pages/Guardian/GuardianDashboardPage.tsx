@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Eye, 
   DollarSign, 
@@ -13,6 +14,7 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
 import StatCard from '../../components/ui/StatCard';
+import useGuardianLinking from '../../hooks/useGuardianLinking';
 
 interface ProtectedPerson {
   id: number;
@@ -34,7 +36,9 @@ interface TransactionRequest {
 }
 
 export default function GuardianDashboardPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'settings'>('overview');
+  const { linkedAccounts, pendingIncomingRequests, currentRole, setRole, removeLink } = useGuardianLinking();
   const tabs: Array<{ key: 'overview' | 'requests' | 'settings'; label: string }> = [
     { key: 'overview', label: 'Overview' },
     { key: 'requests', label: 'Transaction Requests' },
@@ -73,6 +77,81 @@ export default function GuardianDashboardPage() {
         />
 
         <SegmentedTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
+
+        <GlassPanel
+          title="Guardian Access"
+          description={
+            linkedAccounts.length > 0
+              ? `You currently have ${linkedAccounts.length} linked ${linkedAccounts.length === 1 ? 'account' : 'accounts'} in this placeholder flow.`
+              : 'No guardian/dependent links are active for this demo account yet.'
+          }
+          className="mb-6"
+          titleAction={
+            <button
+              type="button"
+              onClick={() => navigate('/guardian-link')}
+              className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
+            >
+              Open Linking Setup
+            </button>
+          }
+        >
+          <div className="flex flex-col gap-3 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-white">
+                {currentRole === 'guardian' ? 'Guardian mode selected' : 'Dependent mode selected'}
+              </p>
+              <p className="text-slate-400">
+                Switch roles or send serial-based linking requests from the setup page. Incoming requests: {pendingIncomingRequests.length}.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setRole('guardian')}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                  currentRole === 'guardian'
+                    ? 'bg-cyan-500/20 text-cyan-200'
+                    : 'bg-slate-700/70 text-slate-300 hover:text-white'
+                }`}
+              >
+                Guardian
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('dependent')}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                  currentRole === 'dependent'
+                    ? 'bg-emerald-500/20 text-emerald-200'
+                    : 'bg-slate-700/70 text-slate-300 hover:text-white'
+                }`}
+              >
+                Dependent
+              </button>
+            </div>
+          </div>
+          {linkedAccounts.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {linkedAccounts.map((link) => (
+                <div key={link.requestId} className="flex items-center justify-between rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
+                  <div>
+                    <p className="font-medium text-white">{link.serial}</p>
+                    <p className="text-sm text-slate-400">
+                      Linked as a {link.role} on {new Date(link.linkedAt).toLocaleDateString()}.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeLink(link.requestId)}
+                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition-all hover:bg-red-500/20"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassPanel>
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (

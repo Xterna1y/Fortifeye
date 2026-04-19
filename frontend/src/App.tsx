@@ -4,6 +4,7 @@ import LoginPage from './pages/Login/LoginPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import InputPage from './pages/Input/InputPage';
 import GuardianDashboardPage from './pages/Guardian/GuardianDashboardPage';
+import GuardianLinkSetupPage from './pages/Guardian/GuardianLinkSetupPage';
 import ProtectedPersonPage from './pages/Guardian/ProtectedPersonPage';
 import SandboxPage from './pages/Sandbox/SandboxPage';
 
@@ -17,6 +18,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/input" element={<InputPage />} />
           <Route path="/guardian" element={<GuardianDashboardPage />} />
+          <Route path="/guardian-link" element={<GuardianLinkSetupPage />} />
           <Route path="/protected" element={<ProtectedPersonPage />} />
           <Route path="/sandbox" element={<SandboxPage />} />
         </Route>
