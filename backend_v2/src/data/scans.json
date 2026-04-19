@@ -30,5 +30,111 @@
     "explanation": "Likely scam",
     "recommended_action": "block",
     "createdAt": "2026-04-19T02:36:36.319Z"
+  },
+  {
+    "id": "0670c216-90b9-4594-af4f-1bf15e342c9e",
+    "type": "text",
+    "input": "URGENT: Your account has been compromised. Transfer money immediately to secure it.",
+    "risk_score": 90,
+    "risk_level": "HIGH",
+    "scam_detected": true,
+    "patterns": [
+      "urgency",
+      "fear_tactics",
+      "authority_impersonation",
+      "financial_coercion"
+    ],
+    "verdict": "The message is a high-risk scam attempting to coerce immediate financial action.",
+    "reasons": [
+      "Uses urgent language (\"URGENT\", \"immediately\") to pressure a quick, unconsidered response.",
+      "Employs fear tactics (\"Your account has been compromised\") to induce panic and bypass rational thinking.",
+      "Demands an immediate transfer of funds (\"Transfer money immediately\") under the false pretense of securing the account.",
+      "Impersonates an authority (implied account provider) by claiming knowledge of an account compromise."
+    ],
+    "explanation": "The message exhibits multiple strong scam indicators, including a high sense of urgency, fear-mongering about an account compromise, and a direct demand to transfer money. The sender attempts to impersonate an authority figure (e.g., a bank or service provider) to legitimize their false claim, aiming to financially coerce the recipient into taking immediate, irreversible action. This combination of strong manipulation patterns indicates a high likelihood of a scam.",
+    "recommended_action": "block",
+    "createdAt": "2026-04-19T04:20:50.052Z"
+  },
+  {
+    "id": "b21a5d44-43e7-42bc-a29d-fc1c9815c1a7",
+    "type": "text",
+    "input": "Hi i am kumar, please open this link to claim your credits\n\nhttp://scam.com",
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [],
+    "verdict": "No specific psychological manipulation patterns detected.",
+    "reasons": [
+      "The message does not contain explicit urgency indicators.",
+      "There are no fear tactics or threats present in the message.",
+      "The sender does not impersonate any authority figures (bank, police, government).",
+      "No financial coercion (e.g., requests to transfer money or pay now) or credential/OTP requests are made."
+    ],
+    "explanation": "The analysis of the message content, strictly adhering to the defined psychological manipulation patterns, did not identify any instances of urgency, fear tactics, authority impersonation, financial coercion, or credential/OTP requests. While the offer to 'claim credits' via an external link might suggest an incentive-based approach, it does not align with the defined 'financial coercion' pattern (which implies demand for money). Therefore, based on the established detection criteria, the message's risk score is zero.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T04:24:11.551Z"
+  },
+  {
+    "id": "df6cd4f2-3696-4e84-a657-0c0ecff55cf3",
+    "type": "text",
+    "input": "Hi i am prashana kumar, please open this link to claim your credits\n\nhttp://scam4u.com",
+    "risk_score": 0,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [],
+    "verdict": "Low risk based on absence of defined psychological manipulation patterns.",
+    "reasons": [
+      "No identifiable urgency or fear tactics employed in the message.",
+      "The message does not impersonate any authority figures (e.g., bank, police, government).",
+      "There is no explicit request for financial transfer, credentials, or one-time passcodes (OTP)."
+    ],
+    "explanation": "The message prompts the user to open a link to 'claim credits'. However, based on the defined FinGuard detection criteria, no specific psychological manipulation patterns such as urgency, fear tactics, authority impersonation, financial coercion, or requests for sensitive information (credentials/OTP) are present. Therefore, it is categorized as low risk according to the current scoring model.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T04:25:34.408Z"
+  },
+  {
+    "id": "71e883f8-6c41-4175-b0ca-5e59ed11f2c2",
+    "type": "text",
+    "input": "Hi i am prashana kumar, please open this link right now to claim your credits fast,\n\nhttp://scam4u.com",
+    "risk_score": 15,
+    "risk_level": "LOW",
+    "scam_detected": false,
+    "patterns": [
+      "urgency"
+    ],
+    "verdict": "The message contains urgent language but lacks explicit patterns of fear, authority impersonation, financial coercion, or credential/OTP requests based on defined analysis criteria.",
+    "reasons": [
+      "The message uses urgent phrases such as \"right now\" and \"fast\" to prompt immediate action.",
+      "It does not impersonate a known authority figure (e.g., bank, government, police).",
+      "It does not contain explicit fear tactics or direct financial demands for payment or transfer.",
+      "No request for sensitive credentials or One-Time Passwords (OTP) is explicitly present in the message text."
+    ],
+    "explanation": "The message exhibits urgent language, encouraging the recipient to click a link quickly to 'claim credits'. However, based on the strictly defined psychological manipulation patterns for risk scoring (urgency, fear, authority impersonation, financial coercion, credential/OTP requests), the message does not present strong indicators beyond urgency. Therefore, the risk, as assessed by these specific patterns, is evaluated as low.",
+    "recommended_action": "allow",
+    "createdAt": "2026-04-19T04:26:03.750Z"
+  },
+  {
+    "id": "16d4562e-ff4e-4b3e-9008-6403f3b55941",
+    "type": "text",
+    "input": "Hi i am prashana kumar, please open this link right now to claim your credits fast, before i kill you. I am from google, give me your OTP code\n\nhttp://scam4u.com",
+    "risk_score": 100,
+    "risk_level": "HIGH",
+    "scam_detected": true,
+    "patterns": [
+      "urgency",
+      "fear_tactics",
+      "authority_impersonation",
+      "otp_request"
+    ],
+    "verdict": "The message is a high-risk scam and should be blocked.",
+    "reasons": [
+      "The message employs extreme fear tactics, explicitly threatening violence ('before i kill you') to coerce immediate action.",
+      "It impersonates a major company (Google) to establish false authority and build trust, a common phishing technique.",
+      "It directly requests an OTP code, a critical credential that, if provided, would grant unauthorized access to accounts.",
+      "The message uses strong urgency ('right now', 'fast') to pressure the recipient into acting without critical thought."
+    ],
+    "explanation": "This message exhibits a critical combination of high-risk scam indicators. The sender attempts to create extreme fear and urgency, while simultaneously impersonating a trusted authority (Google) to demand sensitive credentials (OTP code). The direct threat of violence is an aggressive and clear attempt at psychological manipulation. Providing the requested OTP code would almost certainly lead to immediate financial fraud or account compromise. The presence of multiple strong manipulation patterns, including a direct threat, authority impersonation, and an OTP request, flags this message as a severe scam attempt.",
+    "recommended_action": "block",
+    "createdAt": "2026-04-19T04:26:54.502Z"
   }
 ]

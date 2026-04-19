@@ -2,6 +2,8 @@ import { v4 as uuid } from "uuid";
 import { readData, writeData } from "../../config/db.js";
 import { analyzeSandboxRisk } from "../ai/gemini.service.js";
 import { createHttpError } from "./sandbox.model.js";
+import { getGuardianForUser } from "../guardian/guardian.service.js";
+import { createAlert } from "../alerts/alert.service.js";
 
 const DATA_FILE = "sandboxSessions";
 
@@ -153,8 +155,25 @@ export const saveVerdict = (sessionId, verdict) => {
 
   session.verdict = verdict;
 
-  if (verdict?.recommended_action?.toLowerCase().includes("terminate")) {
+  if (verdict?.recommended_action?.toLowerCase().includes("terminate") || verdict?.risk_level === "HIGH") {
     session.status = "risk_flagged";
+    
+    // Check if the user is a dependent and has a guardian
+    if (session.user_id) {
+      const guardianId = getGuardianForUser(session.user_id);
+      if (guardianId) {
+        createAlert({
+          guardianId,
+          dependentId: session.user_id,
+          type: "SANDBOX_HIGH_RISK",
+          title: "High Risk Sandbox Activity Blocked",
+          message: `Dependent encountered a high risk sandbox session. Verdict: ${verdict.verdict}. Reasons: ${verdict.reasons?.join(", ")}`,
+          sessionId: session.session_id,
+          url: session.current_url,
+          read: false
+        });
+      }
+    }
   }
 
   sessions[index] = session;

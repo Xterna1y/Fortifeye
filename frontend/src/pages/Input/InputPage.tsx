@@ -12,6 +12,7 @@ import {
   XCircle,
   CheckCircle
 } from 'lucide-react';
+import { scanText } from '../../services/api';
 
 type AnalysisMode = 'text' | 'voice';
 type AnalysisStatus = 'idle' | 'analyzing' | 'complete';
@@ -64,42 +65,24 @@ export default function InputPage() {
     setIsRecording(false);
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!text.trim() && !isRecording) return;
     
     setStatus('analyzing');
     
-    // Simulate AI analysis
-    setTimeout(() => {
-      const mockResults: MockResult[] = [
-        {
-          risk_score: 85,
-          scam_detected: true,
-          patterns: ['urgency', 'authority', 'fear'],
-          explanation: 'Message uses urgency tactics and impersonates authority (bank) to pressure immediate action. This is a common scam pattern.',
-          recommended_action: 'block'
-        },
-        {
-          risk_score: 45,
-          scam_detected: false,
-          patterns: ['slightly_promotional'],
-          explanation: 'Message contains some promotional language but does not show clear signs of scams. Proceed with normal caution.',
-          recommended_action: 'warn'
-        },
-        {
-          risk_score: 15,
-          scam_detected: false,
-          patterns: [],
-          explanation: 'Message appears to be from a legitimate source with no detected scam indicators.',
-          recommended_action: 'allow'
-        }
-      ];
-      
-      // Randomly select a result for demo purposes
-      const randomResult = mockResults[Math.floor(Math.random() * mockResults.length)];
-      setResult(randomResult);
-      setStatus('complete');
-    }, 2500);
+    try {
+      if (mode === 'text') {
+        const aiResult = await scanText(text);
+        setResult(aiResult);
+        setStatus('complete');
+      } else {
+        // Voice mode logic placeholder
+        setStatus('idle');
+      }
+    } catch (error) {
+      console.error("Failed to analyze:", error);
+      setStatus('idle');
+    }
   };
 
   const formatTime = (seconds: number) => {
