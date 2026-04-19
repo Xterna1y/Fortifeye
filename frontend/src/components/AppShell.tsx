@@ -12,6 +12,7 @@ import {
   Shield,
   X,
 } from 'lucide-react';
+import logo from '../assets/fortifeye_logo.png';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,9 +27,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
         <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 shadow-lg shadow-cyan-500/20">
-            <Shield className="h-6 w-6 text-white" />
-          </div>
+          <img
+            src={logo}
+            alt="Fortifeye logo"
+            className="h-12 w-12 rounded-2xl object-cover shadow-lg shadow-cyan-500/20"
+          />
           <div>
             <p className="text-lg font-semibold text-white">Fortifeye</p>
             <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/70">Scam Shield</p>
@@ -112,10 +115,12 @@ export default function AppShell() {
         <div className="min-w-0">
           <div className="border-b border-white/10 bg-slate-950/30 px-4 py-4 backdrop-blur-xl lg:hidden">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 shadow-lg shadow-cyan-500/20">
-                  <Shield className="h-5 w-5 text-white" />
-                </div>
+            <div className="flex items-center gap-3">
+                <img
+                  src={logo}
+                  alt="Fortifeye logo"
+                  className="h-11 w-11 rounded-2xl object-cover shadow-lg shadow-cyan-500/20"
+                />
                 <div>
                   <p className="text-base font-semibold text-white">Fortifeye</p>
                   <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/70">Scam Shield</p>
