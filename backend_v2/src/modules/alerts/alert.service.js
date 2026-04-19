@@ -1,17 +1,14 @@
-import { readData, writeData } from "../../config/db.js";
+import { db } from "../../config/db.js";
 import { v4 as uuid } from "uuid";
 
-export const createAlert = (data) => {
-  const alerts = readData("alerts");
-
+export const createAlert = async (data) => {
   const newAlert = {
     id: uuid(),
     ...data,
     createdAt: new Date().toISOString(),
   };
 
-  alerts.push(newAlert);
-  writeData("alerts", alerts);
+  await db.collection("alerts").doc(newAlert.id).set(newAlert);
 
   return newAlert;
 };

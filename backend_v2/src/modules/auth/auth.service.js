@@ -1,7 +1,14 @@
-import { readData } from "../../config/db.js";
+import { db } from "../../config/db.js";
 
-export const login = (email) => {
-  const users = readData("users");
+export const login = async (email) => {
+  const usersRef = db.collection("users");
+  const snapshot = await usersRef.where("email", "==", email).get();
 
-  return users.find((u) => u.email === email);
+  if (snapshot.empty) {
+    return null;
+  }
+
+  // Assuming email is unique, returning the first match
+  const userDoc = snapshot.docs[0];
+  return { id: userDoc.id, ...userDoc.data() };
 };

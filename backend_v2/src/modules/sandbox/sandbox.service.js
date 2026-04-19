@@ -1,36 +1,19 @@
 import { v4 as uuid } from "uuid";
-import { readData, writeData } from "../../config/db.js";
+import { db } from "../../config/db.js";
 import { analyzeSandboxRisk } from "../ai/gemini.service.js";
 import { createHttpError } from "./sandbox.model.js";
 
-const DATA_FILE = "sandboxSessions";
-
-const readSessions = () => readData(DATA_FILE);
-const writeSessions = (sessions) => writeData(DATA_FILE, sessions);
-
-const findSessionIndex = (sessions, sessionId) =>
-  sessions.findIndex((session) => session.session_id === sessionId);
-
-const getSessionOrThrow = (sessions, sessionId) => {
-  const index = findSessionIndex(sessions, sessionId);
-
-  if (index === -1) {
-    throw createHttpError(404, "Sandbox session not found");
-  }
-
-  return { session: sessions[index], index };
-};
+const COLLECTION = "sandboxSessions";
 
 const createSandboxUrl = (sessionId) =>
   `https://sandbox.example.com/session/${sessionId}`;
 
-export const createSession = ({
+export const createSession = async ({
   url,
   device_type,
   session_mode,
   user_id,
 }) => {
-  const sessions = readSessions();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
   const sessionId = `sess_${uuid().slice(0, 8)}`;
@@ -52,8 +35,7 @@ export const createSession = ({
     verdict: null,
   };
 
-  sessions.push(session);
-  writeSessions(sessions);
+  await db.collection(COLLECTION).doc(sessionId).set(session);
 
   return {
     session_id: session.session_id,
@@ -63,26 +45,26 @@ export const createSession = ({
   };
 };
 
-export const getSessionById = (sessionId) => {
-  const sessions = readSessions();
-  return getSessionOrThrow(sessions, sessionId).session;
+export const getSessionById = async (sessionId) => {
+  const doc = await db.collection(COLLECTION).doc(sessionId).get();
+  if (!doc.exists) {
+    throw createHttpError(404, "Sandbox session not found");
+  }
+  return doc.data();
 };
 
-export const terminateSession = (sessionId) => {
-  const sessions = readSessions();
-  const { session, index } = getSessionOrThrow(sessions, sessionId);
+export const terminateSession = async (sessionId) => {
+  const session = await getSessionById(sessionId);
 
   session.status = "terminated";
   session.terminated_at = new Date().toISOString();
-  sessions[index] = session;
 
-  writeSessions(sessions);
+  await db.collection(COLLECTION).doc(sessionId).set(session);
   return session;
 };
 
-export const addEvent = (sessionId, payload) => {
-  const sessions = readSessions();
-  const { session, index } = getSessionOrThrow(sessions, sessionId);
+export const addEvent = async (sessionId, payload) => {
+  const session = await getSessionById(sessionId);
 
   if (session.status === "terminated") {
     throw createHttpError(400, "Cannot add event to a terminated session");
@@ -113,16 +95,18 @@ export const addEvent = (sessionId, payload) => {
   }
 
   session.events.push(event);
-  sessions[index] = session;
 
-  writeSessions(sessions);
+  await db.collection(COLLECTION).doc(sessionId).set(session);
   return event;
 };
 
-export const getEvents = (sessionId) => getSessionById(sessionId).events;
+export const getEvents = async (sessionId) => {
+  const session = await getSessionById(sessionId);
+  return session.events;
+};
 
-export const buildMonitoringInput = (sessionId) => {
-  const session = getSessionById(sessionId);
+export const buildMonitoringInput = async (sessionId) => {
+  const session = await getSessionById(sessionId);
 
   return {
     session_id: session.session_id,
@@ -147,9 +131,8 @@ export const buildMonitoringInput = (sessionId) => {
   };
 };
 
-export const saveVerdict = (sessionId, verdict) => {
-  const sessions = readSessions();
-  const { session, index } = getSessionOrThrow(sessions, sessionId);
+export const saveVerdict = async (sessionId, verdict) => {
+  const session = await getSessionById(sessionId);
 
   session.verdict = verdict;
 
@@ -157,20 +140,19 @@ export const saveVerdict = (sessionId, verdict) => {
     session.status = "risk_flagged";
   }
 
-  sessions[index] = session;
-  writeSessions(sessions);
+  await db.collection(COLLECTION).doc(sessionId).set(session);
   return verdict;
 };
 
 export const getVerdict = async (sessionId) => {
-  const session = getSessionById(sessionId);
+  const session = await getSessionById(sessionId);
 
   if (session.verdict) {
     return session.verdict;
   }
 
-  const monitoringInput = buildMonitoringInput(sessionId);
+  const monitoringInput = await buildMonitoringInput(sessionId);
   const verdict = await analyzeSandboxRisk(monitoringInput);
-  saveVerdict(sessionId, verdict);
+  await saveVerdict(sessionId, verdict);
   return verdict;
 };

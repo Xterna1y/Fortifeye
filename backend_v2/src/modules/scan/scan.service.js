@@ -1,14 +1,12 @@
 import { buildPrompt } from "../ai/promptBuilder.js";
 import { callGemini } from "../ai/gemini.service.js";
-import { readData, writeData } from "../../config/db.js";
+import { db } from "../../config/db.js";
 import { v4 as uuid } from "uuid";
 
 export const scanText = async (text) => {
   const prompt = buildPrompt("text", { text });
 
   const aiResult = await callGemini(prompt);
-
-  const scans = readData("scans");
 
   const newScan = {
     id: uuid(),
@@ -18,8 +16,7 @@ export const scanText = async (text) => {
     createdAt: new Date().toISOString(),
   };
 
-  scans.push(newScan);
-  writeData("scans", scans);
+  await db.collection("scans").doc(newScan.id).set(newScan);
 
   return newScan;
 };
@@ -29,8 +26,6 @@ export const scanUrl = async (url) => {
 
   const aiResult = await callGemini(prompt);
 
-  const scans = readData("scans");
-
   const newScan = {
     id: uuid(),
     type: "url",
@@ -39,13 +34,15 @@ export const scanUrl = async (url) => {
     createdAt: new Date().toISOString(),
   };
 
-  scans.push(newScan);
-  writeData("scans", scans);
+  await db.collection("scans").doc(newScan.id).set(newScan);
 
   return newScan;
 };
 
-export const getScan = (id) => {
-  const scans = readData("scans");
-  return scans.find((s) => s.id === id);
+export const getScan = async (id) => {
+  const doc = await db.collection("scans").doc(id).get();
+  if (!doc.exists) {
+    return null;
+  }
+  return doc.data();
 };

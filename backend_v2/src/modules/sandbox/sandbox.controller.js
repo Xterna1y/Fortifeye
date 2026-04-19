@@ -11,28 +11,28 @@ const handleError = (res, error) => {
   });
 };
 
-export const createSession = (req, res) => {
+export const createSession = async (req, res) => {
   try {
     const payload = validateCreateSessionBody(req.body);
-    const session = sandboxService.createSession(payload);
+    const session = await sandboxService.createSession(payload);
     res.status(201).json(session);
   } catch (error) {
     handleError(res, error);
   }
 };
 
-export const getSession = (req, res) => {
+export const getSession = async (req, res) => {
   try {
-    const session = sandboxService.getSessionById(req.params.id);
+    const session = await sandboxService.getSessionById(req.params.id);
     res.json(session);
   } catch (error) {
     handleError(res, error);
   }
 };
 
-export const terminateSession = (req, res) => {
+export const terminateSession = async (req, res) => {
   try {
-    const session = sandboxService.terminateSession(req.params.id);
+    const session = await sandboxService.terminateSession(req.params.id);
     res.json(session);
   } catch (error) {
     handleError(res, error);
@@ -42,7 +42,7 @@ export const terminateSession = (req, res) => {
 export const addEvent = async (req, res) => {
   try {
     const eventPayload = validateEventBody(req.body);
-    const event = sandboxService.addEvent(req.params.id, eventPayload);
+    const event = await sandboxService.addEvent(req.params.id, eventPayload);
     const latestVerdict = await sandboxService.getVerdict(req.params.id);
 
     res.status(201).json({
@@ -55,9 +55,9 @@ export const addEvent = async (req, res) => {
   }
 };
 
-export const getEvents = (req, res) => {
+export const getEvents = async (req, res) => {
   try {
-    const events = sandboxService.getEvents(req.params.id);
+    const events = await sandboxService.getEvents(req.params.id);
     res.json({
       session_id: req.params.id,
       events,
