@@ -40,7 +40,8 @@ export default function LoginPage() {
         throw new Error(data.message || 'Authentication failed');
       }
 
-      // Success! Navigate to dashboard
+      // Success! Store user in localStorage
+      localStorage.setItem('fortifeye.user', JSON.stringify(data));
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'An error occurred during authentication');

@@ -4,8 +4,11 @@ export interface GuardianLinkRequest {
   id: string;
   requesterRole: GuardianRole;
   requesterSerial: string;
+  requesterName?: string;
+  requesterEmail?: string;
   targetSerial: string;
   status: 'pending' | 'accepted' | 'declined';
+  nickname?: string;
   createdAt: string;
   respondedAt?: string;
 }
@@ -25,5 +28,6 @@ export interface LinkedGuardianAccount {
   requestId: string;
   serial: string;
   role: GuardianRole;
+  nickname?: string;
   linkedAt: string;
 }

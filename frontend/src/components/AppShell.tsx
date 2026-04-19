@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   Shield,
+  Link2,
   X,
 } from 'lucide-react';
 import logo from '../assets/fortifeye_logo.png';
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/input', label: 'Analyze', icon: Activity },
   { to: '/sandbox', label: 'Sandbox', icon: Globe },
+  { to: '/guardian-link', label: 'Linking', icon: Link2 },
   { to: '/guardian', label: 'Guardian', icon: Shield },
   { to: '/protected', label: 'Protected', icon: CreditCard },
 ];

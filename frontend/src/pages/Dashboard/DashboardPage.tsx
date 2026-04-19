@@ -177,6 +177,27 @@ export default function DashboardPage() {
 
           {/* Side Panel */}
           <div className="space-y-6">
+            {useGuardianLinking().pendingIncomingRequests.length > 0 && (
+              <GlassPanel className="border-amber-500/30 bg-amber-500/10">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
+                    <Bell className="h-5 w-5 text-amber-400 animate-bounce" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Link Request</h3>
+                    <p className="text-xs text-slate-400">You have a new connection request</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/guardian-link')}
+                  className="w-full rounded-xl bg-amber-500 py-3 font-medium text-white transition-all hover:bg-amber-600"
+                >
+                  View Requests
+                </button>
+              </GlassPanel>
+            )}
+
             {!hasGuardian && (
               <GlassPanel className="backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-3">

@@ -1,18 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import { guardianLinkingService } from '../services/guardianLinkingService';
-import type { GuardianRole, LinkedGuardianAccount } from '../types/guardian';
+import type { GuardianRole, LinkedGuardianAccount, GuardianLinkingState } from '../types/guardian';
 
 function getTargetRole(role: GuardianRole): GuardianRole {
   return role === 'guardian' ? 'dependent' : 'guardian';
 }
 
+const initialState: GuardianLinkingState = {
+  currentRole: 'dependent',
+  serials: { guardian: '', dependent: '' },
+  requests: [],
+};
+
 export default function useGuardianLinking() {
-  const [state, setState] = useState(() => guardianLinkingService.getState());
+  const [state, setState] = useState<GuardianLinkingState>(initialState);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refreshState = async () => {
+    setIsLoading(true);
+    const nextState = await guardianLinkingService.getState();
+    setState(nextState);
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    return guardianLinkingService.subscribe(() => {
-      setState(guardianLinkingService.getState());
-    });
+    refreshState();
+    return guardianLinkingService.subscribe(refreshState);
   }, []);
 
   const currentRole = state.currentRole;
@@ -24,61 +37,45 @@ export default function useGuardianLinking() {
     [state.requests],
   );
 
-  const linkedAccount =
-    linkedRequests.find(
-      (request) => request.requesterSerial === currentSerial || request.targetSerial === currentSerial,
-    ) ?? null;
-
-  const linkedAccounts: LinkedGuardianAccount[] = linkedRequests
-    .filter((request) => request.requesterSerial === currentSerial || request.targetSerial === currentSerial)
-    .map((request) => ({
+  const linkedAccounts: LinkedGuardianAccount[] = linkedRequests.map((request) => ({
       requestId: request.id,
       serial: request.requesterSerial === currentSerial ? request.targetSerial : request.requesterSerial,
       role: request.requesterSerial === currentSerial ? getTargetRole(request.requesterRole) : request.requesterRole,
+      nickname: request.nickname,
       linkedAt: request.respondedAt ?? request.createdAt,
     }));
 
   const pendingIncomingRequests = state.requests.filter(
-    (request) => request.status === 'pending' && request.targetSerial === currentSerial,
+    (request) => request.status === 'pending' // Our API already filters by target userId
   );
 
   const pendingOutgoingRequests = state.requests.filter(
     (request) => request.status === 'pending' && request.requesterSerial === currentSerial,
   );
 
-  const hasGuardian = linkedRequests.some(
-    (request) =>
-      request.requesterSerial === state.serials.dependent ||
-      request.targetSerial === state.serials.dependent,
-  );
-
-  const guardian =
-    linkedRequests.find(
-      (request) =>
-        request.requesterSerial === state.serials.dependent ||
-        request.targetSerial === state.serials.dependent,
-    ) ?? null;
-
   return {
+    isLoading,
     currentRole,
     currentSerial,
     targetRole,
     serials: state.serials,
     requests: state.requests,
-    linkedAccount,
     linkedAccounts,
-    guardian,
-    hasGuardian,
     pendingIncomingRequests,
     pendingOutgoingRequests,
-    setRole: (role: GuardianRole) => setState(guardianLinkingService.setRole(role)),
-    sendRequest: (targetSerial: string) => {
-      const result = guardianLinkingService.sendRequest(targetSerial);
-      setState(guardianLinkingService.getState());
+    sendRequest: async (targetSerial: string) => {
+      const result = await guardianLinkingService.sendRequest(targetSerial);
+      await refreshState();
       return result;
     },
-    acceptRequest: (requestId: string) => setState(guardianLinkingService.acceptRequest(requestId)),
-    declineRequest: (requestId: string) => setState(guardianLinkingService.declineRequest(requestId)),
-    removeLink: (requestId: string) => setState(guardianLinkingService.removeLink(requestId)),
+    acceptRequest: async (requestId: string, nickname?: string) => {
+      const success = await guardianLinkingService.acceptRequest(requestId, nickname);
+      if (success) await refreshState();
+    },
+    declineRequest: async (requestId: string) => {
+      const success = await guardianLinkingService.declineRequest(requestId);
+      if (success) await refreshState();
+    },
+    refresh: refreshState
   };
 }
