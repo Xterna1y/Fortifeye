@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { 
+import {
   Shield, 
   Globe, 
   Lock, 
@@ -22,6 +22,8 @@ import {
   Trash2,
   Search
 } from 'lucide-react';
+import GlassPanel from '../../components/ui/GlassPanel';
+import PageHeader from '../../components/ui/PageHeader';
 
 interface SandboxSession {
   id: string;
@@ -156,58 +158,47 @@ export default function SandboxPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Top Navigation */}
-      <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">Fortifeye</span>
-              <span className="ml-2 px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">Sandbox</span>
-            </div>
-
-            {/* Right Side */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
-                  showHistory 
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                }`}
-              >
-                <History className="w-4 h-4" />
-                <span className="text-sm">History</span>
-              </button>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+      <div className="max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          title="Secure Sandbox"
+          description="Open suspicious links in an isolated browser session before they ever touch your real device environment."
+          action={
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
+                showHistory
+                  ? 'border-cyan-500/30 bg-cyan-500/15 text-cyan-300'
+                  : 'border-slate-700/60 bg-slate-900/40 text-slate-300 hover:border-slate-600 hover:text-white'
+              }`}
+            >
+              <History className="w-4 h-4" />
+              {showHistory ? 'Hide History' : 'Show History'}
+            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5">
                 <Lock className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm text-emerald-400">Secure Environment Active</span>
+                <span className="text-sm text-emerald-300">Secure Environment Active</span>
               </div>
               <div className="flex items-center gap-2 text-slate-400">
-                <Fingerprint className="w-5 h-5" />
+                <Fingerprint className="w-4 h-4" />
                 <span className="text-sm">Isolated</span>
               </div>
             </div>
-          </div>
-        </div>
-      </header>
+            </div>
+          }
+        />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* URL Input Section */}
         {showUrlInput && (
           <div className="mb-8">
-            <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <GlassPanel>
+              <div className="mb-2 flex items-center gap-2 text-lg font-semibold text-white">
                 <Globe className="w-5 h-5 text-cyan-400" />
-                Open Link in Secure Sandbox
-              </h2>
-              <p className="text-slate-400 text-sm mb-4">
-                Enter a URL to open it in our isolated sandbox environment. 
-                All links run in a virtual browser to protect your device from malicious content.
+                <span>Open Link in Secure Sandbox</span>
+              </div>
+              <p className="mb-4 text-sm text-slate-400">
+                Enter a URL to open it in our isolated sandbox environment. All links run in a virtual browser to protect your device from malicious content.
               </p>
               
               <div className="flex gap-3">
@@ -251,14 +242,14 @@ export default function SandboxPage() {
                   <span>Phishing protection</span>
                 </div>
               </div>
-            </div>
+            </GlassPanel>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar - Sessions or History */}
           <div className="lg:col-span-1">
-            <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-4">
+            <GlassPanel padding="sm">
               {showHistory ? (
                 // History Panel
                 <>
@@ -416,7 +407,7 @@ export default function SandboxPage() {
                   </button>
                 </>
               )}
-            </div>
+            </GlassPanel>
           </div>
 
           {/* Sandbox Viewport */}
@@ -548,6 +539,5 @@ export default function SandboxPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
