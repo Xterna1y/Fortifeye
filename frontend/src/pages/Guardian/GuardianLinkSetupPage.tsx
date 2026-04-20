@@ -2,14 +2,24 @@ import { useState } from 'react';
 import {
   CheckCircle,
   Copy,
+  Fingerprint,
   Link2,
-  MailPlus,
   Loader2,
+  MailPlus,
+  Shield,
+  UserRound,
   XCircle,
 } from 'lucide-react';
+import AlertBanner from '../../components/ui/AlertBanner';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
 import GlassPanel from '../../components/ui/GlassPanel';
+import InputField from '../../components/ui/InputField';
 import PageHeader from '../../components/ui/PageHeader';
+import SegmentedTabs from '../../components/ui/SegmentedTabs';
+import StatusBadge from '../../components/ui/StatusBadge';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
+import type { GuardianRole } from '../../types/guardian';
 
 function formatTimestamp(value?: string) {
   if (!value) {
@@ -33,42 +43,77 @@ export default function GuardianLinkSetupPage() {
     linkedAccounts,
     pendingIncomingRequests,
     pendingOutgoingRequests,
+    setRole,
     sendRequest,
     acceptRequest,
     declineRequest,
+    removeLink,
+    updateLinkNickname,
   } = useGuardianLinking();
-  
   const [targetSerialInput, setTargetSerialInput] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [feedbackTone, setFeedbackTone] = useState<'success' | 'error'>('success');
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [copyFeedbackTone, setCopyFeedbackTone] = useState<'success' | 'error'>('success');
+  const [requestFeedback, setRequestFeedback] = useState<string | null>(null);
+  const [requestFeedbackTone, setRequestFeedbackTone] = useState<'success' | 'error'>('success');
+  const [inputError, setInputError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const roleTabs: Array<{ key: GuardianRole; label: string }> = [
+    { key: 'guardian', label: 'I am a Guardian' },
+    { key: 'dependent', label: 'I am a Dependent' },
+  ];
 
   const handleCopySerial = async () => {
     try {
       await navigator.clipboard.writeText(currentSerial);
-      setFeedbackTone('success');
-      setFeedback('Serial ID copied.');
+      setCopyFeedbackTone('success');
+      setCopyFeedback('Serial ID copied.');
     } catch {
-      setFeedbackTone('error');
-      setFeedback('Could not copy the serial ID from this browser.');
+      setCopyFeedbackTone('error');
+      setCopyFeedback('Could not copy the serial ID from this browser.');
     }
   };
 
   const handleSendRequest = async () => {
     setIsSubmitting(true);
-    setFeedback(null);
+    setInputError(null);
+    setRequestFeedback(null);
+
     const result = await sendRequest(targetSerialInput);
     setIsSubmitting(false);
 
     if (!result.ok) {
-      setFeedbackTone('error');
-      setFeedback(result.error ?? 'Unable to send request.');
+      setInputError(result.error ?? 'Unable to validate this serial ID.');
+      setRequestFeedbackTone('error');
+      setRequestFeedback(result.error ?? 'Unable to send request.');
       return;
     }
 
-    setFeedbackTone('success');
-    setFeedback(`Link request sent to ${targetSerialInput.trim().toUpperCase()}.`);
+    setRequestFeedbackTone('success');
+    setRequestFeedback(`Link request sent to ${targetSerialInput.trim().toUpperCase()}.`);
     setTargetSerialInput('');
+  };
+
+  const handleAcceptRequest = async (requestId: string, defaultName?: string) => {
+    const nickname = window.prompt('Set a guardian nickname for this linked user:', defaultName || '');
+    if (nickname === null) {
+      return;
+    }
+
+    await acceptRequest(requestId, nickname.trim() || undefined);
+  };
+
+  const handleEditNickname = async (requestId: string, currentNickname?: string) => {
+    const nickname = window.prompt('Update the guardian nickname for this linked user:', currentNickname || '');
+    if (nickname === null) {
+      return;
+    }
+
+    const success = await updateLinkNickname(requestId, nickname);
+    if (!success) {
+      setRequestFeedbackTone('error');
+      setRequestFeedback('Unable to update the nickname right now.');
+    }
   };
 
   if (isLoading) {
@@ -83,111 +128,152 @@ export default function GuardianLinkSetupPage() {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Guardian Linking Setup"
-        description="Share your unique Serial ID with others to link your accounts. Once linked, guardians can monitor their dependents' safety."
+        description="Choose your role, share the right serial ID, and manage live guardian linking requests from the database."
       />
 
-      <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <SegmentedTabs activeTab={currentRole} onChange={setRole} tabs={roleTabs} />
+
+      <div className="mb-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <GlassPanel
-          title="Your Serial ID"
-          description={`Share this ID with the person you want to link with.`}
+          title="Step 1: Choose Your Role"
+          description="Users can decide which side of the relationship they want to be before sending a request."
         >
-          <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-5">
-            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Your unique serial</p>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-2xl font-bold tracking-[0.18em] text-white">{currentSerial}</p>
-              <button
-                type="button"
-                onClick={handleCopySerial}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700/70 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition-all hover:border-slate-600"
-              >
-                <Copy className="h-4 w-4" />
-                Copy
-              </button>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setRole('guardian')}
+              className={`rounded-2xl border p-5 text-left transition-all ${
+                currentRole === 'guardian'
+                  ? 'border-cyan-400/40 bg-cyan-500/10'
+                  : 'border-slate-700/60 bg-slate-900/40 hover:border-slate-600'
+              }`}
+            >
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/15">
+                <Shield className="h-6 w-6 text-cyan-300" />
+              </div>
+              <h2 className="text-lg font-semibold text-white">Guardian</h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Monitor another user, receive risk notifications, and review transaction requests.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRole('dependent')}
+              className={`rounded-2xl border p-5 text-left transition-all ${
+                currentRole === 'dependent'
+                  ? 'border-emerald-400/40 bg-emerald-500/10'
+                  : 'border-slate-700/60 bg-slate-900/40 hover:border-slate-600'
+              }`}
+            >
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15">
+                <UserRound className="h-6 w-6 text-emerald-300" />
+              </div>
+              <h2 className="text-lg font-semibold text-white">Dependent</h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Connect your account to a guardian who can help review suspicious activity.
+              </p>
+            </button>
           </div>
-          <p className="mt-4 text-sm text-slate-400">
-            Current Identity: <span className="font-semibold text-cyan-400 capitalize">{currentRole}</span>
-          </p>
         </GlassPanel>
 
         <GlassPanel
-          title="Send a Link Request"
-          description={`Enter the Serial ID of the user you want to connect with.`}
+          title="Step 2: Share Your Serial ID"
+          description={`Give this ${currentRole} serial to the other user so they can send the correct request.`}
+        >
+          <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 p-5">
+            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Your {currentRole} serial</p>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-2xl font-bold tracking-[0.18em] text-white">{currentSerial}</p>
+              <Button onClick={handleCopySerial} variant="secondary">
+                <Copy className="h-4 w-4" />
+                Copy
+              </Button>
+            </div>
+          </div>
+          {copyFeedback && (
+            <div className="mt-4">
+              <AlertBanner tone={copyFeedbackTone === 'success' ? 'success' : 'error'}>
+                {copyFeedback}
+              </AlertBanner>
+            </div>
+          )}
+        </GlassPanel>
+      </div>
+
+      <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <GlassPanel
+          title="Step 3: Send a Link Request"
+          description={`Enter the ${targetRole} serial ID and send the request from your current role.`}
         >
           <div className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Target Serial ID
-              </label>
-              <input
-                type="text"
-                value={targetSerialInput}
-                onChange={(event) => setTargetSerialInput(event.target.value.toUpperCase())}
-                placeholder="FE-XXXXXX"
-                className="w-full rounded-xl border border-slate-600/60 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleSendRequest}
-              disabled={isSubmitting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
+            <InputField
+              id="guardian-link-target-serial"
+              label={targetRole === 'guardian' ? 'Guardian serial ID' : 'Dependent serial ID'}
+              value={targetSerialInput}
+              onChange={(event) => setTargetSerialInput(event.target.value.toUpperCase())}
+              placeholder={targetRole === 'guardian' ? 'FE-ABC123' : 'FE-ABC123'}
+              helperText={`This account is acting as ${currentRole}, so you need the other user's ${targetRole} serial here.`}
+              error={inputError ?? undefined}
+              leading={<Fingerprint className="h-4 w-4" />}
+            />
+            <Button onClick={handleSendRequest} fullWidth disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MailPlus className="h-5 w-5" />}
               Send Link Request
-            </button>
-            {feedback && (
-              <div
-                className={`rounded-xl border px-4 py-3 text-sm ${
-                  feedbackTone === 'success'
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                    : 'border-red-500/30 bg-red-500/10 text-red-200'
-                }`}
-              >
-                {feedback}
-              </div>
+            </Button>
+            {requestFeedback && (
+              <AlertBanner tone={requestFeedbackTone === 'success' ? 'success' : 'error'}>
+                {requestFeedback}
+              </AlertBanner>
             )}
           </div>
+        </GlassPanel>
+
+        <GlassPanel
+          title="How The Live Flow Works"
+          description="This version keeps the hz UX but uses the real guardian-link backend."
+        >
+          <ul className="space-y-3 text-sm text-slate-300">
+            <li>1. Pick the role this account should use before you send a request.</li>
+            <li>2. Share the generated serial ID with the other user.</li>
+            <li>3. Send the request to the matching serial for the opposite role.</li>
+            <li>4. Accept requests with a custom nickname so guardians can label linked users clearly.</li>
+            <li>5. Edit the nickname later or remove the link without losing the live backend state.</li>
+          </ul>
         </GlassPanel>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
-        <GlassPanel title="Incoming Requests" description="Requests sent to you appear here.">
+        <GlassPanel title="Incoming Requests" description="Requests sent to your current serial appear here.">
           <div className="space-y-4">
             {pendingIncomingRequests.length === 0 ? (
-              <p className="text-sm text-slate-400">No incoming requests right now.</p>
+              <EmptyState
+                icon={MailPlus}
+                title="No incoming requests"
+                description={`No one has sent a guardian request to ${currentSerial} yet.`}
+              />
             ) : (
               pendingIncomingRequests.map((request) => (
                 <div key={request.id} className="rounded-2xl border border-amber-500/20 bg-slate-900/50 p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="font-medium text-white">{request.requesterName || request.requesterEmail}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-white">{request.requesterName || request.requesterEmail || request.requesterSerial}</p>
+                        <StatusBadge tone="warning">Pending</StatusBadge>
+                      </div>
                       <p className="mt-1 text-sm text-slate-400">
-                        Requested on {formatTimestamp(request.createdAt)} to be your {request.requesterRole === 'guardian' ? 'Guardian' : 'Dependent'}.
+                        Requested on {formatTimestamp(request.createdAt)} as a {request.requesterRole}.
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const name = window.prompt("Enter a nickname for this person:", request.requesterName || "");
-                          if (name !== null) {
-                            acceptRequest(request.id, name);
-                          }
-                        }}
-                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600"
-                      >
+                      <Button onClick={() => handleAcceptRequest(request.id, request.requesterName)} className="px-4 py-2">
                         <CheckCircle className="h-4 w-4" />
                         Accept
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => declineRequest(request.id)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
-                      >
+                      </Button>
+                      <Button onClick={() => declineRequest(request.id)} variant="danger" className="px-4 py-2">
                         <XCircle className="h-4 w-4" />
                         Decline
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -197,19 +283,34 @@ export default function GuardianLinkSetupPage() {
         </GlassPanel>
 
         <div className="space-y-6">
-          <GlassPanel title="Linked Accounts" description="Users you are currently connected with.">
+          <GlassPanel title="Linked Accounts" description="Accepted guardian/dependent relationships for this account.">
             <div className="space-y-4">
               {linkedAccounts.length === 0 ? (
-                <p className="text-sm text-slate-400">No linked accounts yet.</p>
+                <EmptyState
+                  icon={Link2}
+                  title="No linked accounts yet"
+                  description="Accepted relationships will appear here after either user approves the request."
+                />
               ) : (
                 linkedAccounts.map((link) => (
                   <div key={link.requestId} className="rounded-2xl border border-emerald-500/20 bg-slate-900/50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-white">{link.nickname || link.serial}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-white">{link.nickname || link.name || link.serial}</p>
+                          <StatusBadge tone="success">Linked</StatusBadge>
+                        </div>
                         <p className="mt-1 text-sm text-slate-400">
-                          Linked {formatTimestamp(link.linkedAt)} as your {link.role}.
+                          {link.email || link.serial} • linked {formatTimestamp(link.linkedAt)} as a {link.role}.
                         </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Button onClick={() => handleEditNickname(link.requestId, link.nickname || link.name)} variant="secondary" className="px-3 py-2 text-xs">
+                          Edit nickname
+                        </Button>
+                        <Button onClick={() => removeLink(link.requestId)} variant="danger" className="px-3 py-2 text-xs">
+                          Remove
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -218,10 +319,14 @@ export default function GuardianLinkSetupPage() {
             </div>
           </GlassPanel>
 
-          <GlassPanel title="Outgoing Requests" description="Requests you have sent and are awaiting a response.">
+          <GlassPanel title="Outgoing Requests" description="Requests you have already sent from this serial.">
             <div className="space-y-4">
               {pendingOutgoingRequests.length === 0 ? (
-                <p className="text-sm text-slate-400">No pending outgoing requests.</p>
+                <EmptyState
+                  icon={Link2}
+                  title="No outgoing requests"
+                  description={`You have not sent any guardian requests from ${currentSerial} yet.`}
+                />
               ) : (
                 pendingOutgoingRequests.map((request) => (
                   <div key={request.id} className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4">
@@ -230,7 +335,10 @@ export default function GuardianLinkSetupPage() {
                         <Link2 className="h-5 w-5 text-cyan-300" />
                       </div>
                       <div>
-                        <p className="font-medium text-white">{request.targetSerial}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-white">{request.targetSerial}</p>
+                          <StatusBadge tone="info">Pending</StatusBadge>
+                        </div>
                         <p className="mt-1 text-sm text-slate-400">
                           Sent {formatTimestamp(request.createdAt)}. Awaiting response.
                         </p>

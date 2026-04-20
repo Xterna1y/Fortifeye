@@ -195,4 +195,22 @@ export const guardianLinkingService = {
       return false;
     }
   },
+
+  async updateLinkNickname(linkId: string, nickname: string) {
+    const user = getUser();
+    if (!user) return false;
+
+    try {
+      const response = await fetch(`${GUARDIAN_API_BASE_URL}/links/${linkId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, nickname }),
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Failed to update link nickname:', error);
+      return false;
+    }
+  },
 };

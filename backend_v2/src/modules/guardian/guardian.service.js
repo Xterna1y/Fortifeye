@@ -194,3 +194,32 @@ export const removeLink = async (linkId, userId) => {
 
   return { id: linkId, removed: true };
 };
+
+export const updateLinkNickname = async (linkId, userId, nickname) => {
+  if (!db) throw new Error("Firebase not configured.");
+
+  const trimmedNickname = String(nickname || "").trim();
+  if (!trimmedNickname) {
+    throw new Error("Nickname is required.");
+  }
+
+  const linkRef = db.collection("protectedPersons").doc(linkId);
+  const linkDoc = await linkRef.get();
+
+  if (!linkDoc.exists) {
+    throw new Error("Link not found.");
+  }
+
+  const linkData = linkDoc.data();
+  if (linkData.guardianId !== userId && linkData.childId !== userId) {
+    throw new Error("You do not have permission to update this link.");
+  }
+
+  await linkRef.update({
+    nickname: trimmedNickname,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const updatedDoc = await linkRef.get();
+  return { id: updatedDoc.id, ...updatedDoc.data() };
+};

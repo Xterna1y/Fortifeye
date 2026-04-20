@@ -6,6 +6,7 @@ import InputPage from './pages/Input/InputPage';
 import GuardianDashboardPage from './pages/Guardian/GuardianDashboardPage';
 import GuardianLinkSetupPage from './pages/Guardian/GuardianLinkSetupPage';
 import ProtectedPersonPage from './pages/Guardian/ProtectedPersonPage';
+import AccountSettingsPage from './pages/Account/AccountSettingsPage';
 import SandboxPage from './pages/Sandbox/SandboxPage';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/guardian" element={<GuardianDashboardPage />} />
           <Route path="/guardian-link" element={<GuardianLinkSetupPage />} />
           <Route path="/protected" element={<ProtectedPersonPage />} />
+          <Route path="/account" element={<AccountSettingsPage />} />
           <Route path="/sandbox" element={<SandboxPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

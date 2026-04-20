@@ -84,3 +84,19 @@ export const deleteLink = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const patchLinkNickname = async (req, res) => {
+  try {
+    const { linkId } = req.params;
+    const { userId, nickname } = req.body;
+
+    if (!userId || !nickname) {
+      return res.status(400).json({ message: "User ID and nickname are required." });
+    }
+
+    const result = await guardianService.updateLinkNickname(linkId, String(userId), nickname);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};

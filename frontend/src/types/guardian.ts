@@ -29,5 +29,7 @@ export interface LinkedGuardianAccount {
   serial: string;
   role: GuardianRole;
   nickname?: string;
+  name?: string;
+  email?: string;
   linkedAt: string;
 }

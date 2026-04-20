@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   Activity,
@@ -7,10 +7,12 @@ import {
   CreditCard,
   Globe,
   LayoutDashboard,
+  Link2,
   LogOut,
   Menu,
+  Settings,
   Shield,
-  Link2,
+  UserCircle2,
   X,
 } from 'lucide-react';
 import logo from '../assets/fortifeye_logo.png';
@@ -25,6 +27,12 @@ const navItems = [
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const [accountOpen, setAccountOpen] = useState(false);
+  const user = useMemo(() => {
+    const stored = localStorage.getItem('fortifeye.user');
+    return stored ? JSON.parse(stored) : null;
+  }, []);
+
   return (
     <div className="flex h-full flex-col">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
@@ -86,17 +94,57 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <p className="text-sm text-slate-200">Analyze messages, screen links, and keep guardian controls one click away.</p>
       </div>
 
-      <div className="mt-auto pt-6">
-        <NavLink
-          to="/"
-          onClick={onNavigate}
-          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-sm font-medium text-slate-300 transition-all hover:border-red-400/30 hover:bg-red-500/10 hover:text-white"
+      <div className="relative mt-auto pt-6">
+        {accountOpen && (
+          <div className="absolute bottom-[5.5rem] left-0 right-0 rounded-3xl border border-white/10 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-xl">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-semibold text-white">{user?.name || 'Account'}</p>
+              <p className="mt-1 text-xs text-slate-400">{user?.email || 'No email available'}</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.24em] text-cyan-200/70">
+                {user?.identity === 'guardian' ? 'Guardian' : user?.identity === 'dependent' ? 'Dependent' : 'Unassigned'}
+              </p>
+            </div>
+            <div className="mt-3 space-y-2">
+              <NavLink
+                to="/account"
+                onClick={() => {
+                  setAccountOpen(false);
+                  onNavigate?.();
+                }}
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition-all hover:bg-white/10"
+              >
+                <Settings className="h-4 w-4" />
+                Account Settings
+              </NavLink>
+              <NavLink
+                to="/"
+                onClick={() => {
+                  setAccountOpen(false);
+                  onNavigate?.();
+                }}
+                className="flex items-center gap-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-100 transition-all hover:bg-red-500/20"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </NavLink>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setAccountOpen((open) => !open)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-left text-sm font-medium text-slate-300 transition-all hover:border-cyan-400/30 hover:bg-cyan-500/10 hover:text-white"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800/80">
-            <LogOut className="h-5 w-5" />
+            <UserCircle2 className="h-5 w-5" />
           </span>
-          <span>Sign Out</span>
-        </NavLink>
+          <span className="flex-1">
+            <span className="block text-sm text-white">{user?.name || 'Account'}</span>
+            <span className="block text-xs text-slate-400">Open quick actions</span>
+          </span>
+          <ChevronRight className={`h-4 w-4 transition-transform ${accountOpen ? 'rotate-90' : ''}`} />
+        </button>
       </div>
     </div>
   );
@@ -117,7 +165,7 @@ export default function AppShell() {
         <div className="min-w-0">
           <div className="border-b border-white/10 bg-slate-950/30 px-4 py-4 backdrop-blur-xl lg:hidden">
             <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <img
                   src={logo}
                   alt="Fortifeye logo"

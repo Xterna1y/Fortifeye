@@ -42,6 +42,8 @@ export default function useGuardianLinking() {
       serial: request.requesterSerial === currentSerial ? request.targetSerial : request.requesterSerial,
       role: request.requesterSerial === currentSerial ? getTargetRole(request.requesterRole) : request.requesterRole,
       nickname: request.nickname,
+      name: request.requesterName,
+      email: request.requesterEmail,
       linkedAt: request.respondedAt ?? request.createdAt,
     }));
 
@@ -91,6 +93,11 @@ export default function useGuardianLinking() {
     removeLink: async (requestId: string) => {
       const success = await guardianLinkingService.removeLink(requestId);
       if (success) await refreshState();
+    },
+    updateLinkNickname: async (requestId: string, nickname: string) => {
+      const success = await guardianLinkingService.updateLinkNickname(requestId, nickname);
+      if (success) await refreshState();
+      return success;
     },
     refresh: refreshState
   };
