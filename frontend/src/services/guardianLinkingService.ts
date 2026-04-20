@@ -13,6 +13,10 @@ const getUser = () => {
   return userJson ? JSON.parse(userJson) : null;
 };
 
+const setUser = (user: any) => {
+  localStorage.setItem('fortifeye.user', JSON.stringify(user));
+};
+
 export const guardianLinkingService = {
   async getState(): Promise<GuardianLinkingState> {
     const user = getUser();
@@ -87,6 +91,15 @@ export const guardianLinkingService = {
     return () => window.removeEventListener('storage', handleStorage);
   },
 
+  async setRole(role: GuardianRole): Promise<GuardianLinkingState> {
+    const user = getUser();
+    if (user) {
+      setUser({ ...user, identity: role });
+    }
+
+    return this.getState();
+  },
+
   async sendRequest(targetSerialInput: string): Promise<SendRequestResult> {
     const user = getUser();
     if (!user) return { ok: false, error: 'User not logged in.' };
@@ -155,6 +168,30 @@ export const guardianLinkingService = {
       return response.ok;
     } catch (error) {
       console.error('Failed to decline request:', error);
+      return false;
+    }
+  },
+
+  async removeLink(linkId: string) {
+    const user = getUser();
+    if (!user) return false;
+
+    try {
+      const response = await fetch(`${GUARDIAN_API_BASE_URL}/links/${linkId}?userId=${user.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        const profileRes = await fetch(`${API_BASE_URL}/auth/profile/${user.id}`);
+        const updatedUser = await parseJsonResponse<any>(profileRes);
+        if (profileRes.ok) {
+          setUser(updatedUser);
+        }
+      }
+
+      return response.ok;
+    } catch (error) {
+      console.error('Failed to remove link:', error);
       return false;
     }
   },

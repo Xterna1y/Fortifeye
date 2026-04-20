@@ -68,3 +68,19 @@ export const getDependents = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const deleteLink = async (req, res) => {
+  try {
+    const { linkId } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const result = await guardianService.removeLink(linkId, String(userId));
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};

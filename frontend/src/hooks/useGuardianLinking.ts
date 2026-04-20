@@ -53,6 +53,11 @@ export default function useGuardianLinking() {
     (request) => request.status === 'pending' && request.requesterSerial === currentSerial,
   );
 
+  const linkedAccount = linkedAccounts[0] ?? null;
+  const guardian =
+    linkedAccounts.find((account) => account.role === 'guardian') ?? null;
+  const hasGuardian = Boolean(guardian);
+
   return {
     isLoading,
     currentRole,
@@ -60,9 +65,16 @@ export default function useGuardianLinking() {
     targetRole,
     serials: state.serials,
     requests: state.requests,
+    linkedAccount,
     linkedAccounts,
+    guardian,
+    hasGuardian,
     pendingIncomingRequests,
     pendingOutgoingRequests,
+    setRole: async (role: GuardianRole) => {
+      const nextState = await guardianLinkingService.setRole(role);
+      setState(nextState);
+    },
     sendRequest: async (targetSerial: string) => {
       const result = await guardianLinkingService.sendRequest(targetSerial);
       await refreshState();
@@ -74,6 +86,10 @@ export default function useGuardianLinking() {
     },
     declineRequest: async (requestId: string) => {
       const success = await guardianLinkingService.declineRequest(requestId);
+      if (success) await refreshState();
+    },
+    removeLink: async (requestId: string) => {
+      const success = await guardianLinkingService.removeLink(requestId);
       if (success) await refreshState();
     },
     refresh: refreshState

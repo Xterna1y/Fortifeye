@@ -165,3 +165,32 @@ export const getLinks = async (userId) => {
 
   return links;
 };
+
+export const removeLink = async (linkId, userId) => {
+  if (!db) throw new Error("Firebase not configured.");
+
+  const linkRef = db.collection("protectedPersons").doc(linkId);
+  const linkDoc = await linkRef.get();
+
+  if (!linkDoc.exists) {
+    throw new Error("Link not found.");
+  }
+
+  const linkData = linkDoc.data();
+  if (linkData.guardianId !== userId && linkData.childId !== userId) {
+    throw new Error("You do not have permission to remove this link.");
+  }
+
+  await linkRef.delete();
+
+  const guardianLinks = await db
+    .collection("protectedPersons")
+    .where("guardianId", "==", linkData.guardianId)
+    .get();
+
+  if (guardianLinks.empty) {
+    await db.collection("users").doc(linkData.guardianId).update({ identity: "na" });
+  }
+
+  return { id: linkId, removed: true };
+};
