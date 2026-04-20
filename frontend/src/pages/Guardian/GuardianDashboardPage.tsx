@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -44,7 +44,11 @@ export default function GuardianDashboardPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'settings'>('overview');
+  const [activeOverviewFilter, setActiveOverviewFilter] = useState<
+    'protected' | 'pending' | 'approved' | 'blocked'
+  >('protected');
   const [rejectionDrafts, setRejectionDrafts] = useState<Record<string, string>>({});
+  const overviewHistoryRef = useRef<HTMLDivElement | null>(null);
   const {
     linkedAccounts,
     removeLink,
@@ -95,6 +99,35 @@ export default function GuardianDashboardPage() {
     await rejectRequest(requestId, rejectionDrafts[requestId] || undefined);
     setRejectionDrafts((current) => ({ ...current, [requestId]: '' }));
   };
+
+  const handleOverviewFilterChange = (
+    filter: 'protected' | 'pending' | 'approved' | 'blocked',
+  ) => {
+    setActiveOverviewFilter(filter);
+
+    window.requestAnimationFrame(() => {
+      overviewHistoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const overviewHistoryConfig = {
+    protected: {
+      title: 'Protected History',
+      description: 'All currently linked dependents under your guardian account.',
+    },
+    pending: {
+      title: 'Pending History',
+      description: 'All transaction requests that still need your review.',
+    },
+    approved: {
+      title: 'Approved History',
+      description: 'Previously approved transaction requests.',
+    },
+    blocked: {
+      title: 'Blocked History',
+      description: 'Rejected transaction requests and any recorded reasons.',
+    },
+  }[activeOverviewFilter];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -156,34 +189,199 @@ export default function GuardianDashboardPage() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <StatCard
-              label="Protected"
-              value={protectedPeople.length}
-              icon={User}
-              iconWrapperClassName="bg-cyan-500/20"
-              iconClassName="text-cyan-400"
-            />
-            <StatCard
-              label="Pending"
-              value={pendingRequests.length}
-              icon={AlertTriangle}
-              iconWrapperClassName="bg-amber-500/20"
-              iconClassName="text-amber-400"
-            />
-            <StatCard
-              label="Approved"
-              value={approvedRequests.length}
-              icon={CheckCircle}
-              iconWrapperClassName="bg-emerald-500/20"
-              iconClassName="text-emerald-400"
-            />
-            <StatCard
-              label="Blocked"
-              value={rejectedRequests.length}
-              icon={Ban}
-              iconWrapperClassName="bg-red-500/20"
-              iconClassName="text-red-400"
-            />
+            <button type="button" onClick={() => handleOverviewFilterChange('protected')} className="text-left">
+              <StatCard
+                label="Protected"
+                value={protectedPeople.length}
+                icon={User}
+                iconWrapperClassName="bg-cyan-500/20"
+                iconClassName="text-cyan-400"
+                className={activeOverviewFilter === 'protected' ? 'border-cyan-400/40 bg-cyan-400/10' : undefined}
+              />
+            </button>
+            <button type="button" onClick={() => handleOverviewFilterChange('pending')} className="text-left">
+              <StatCard
+                label="Pending"
+                value={pendingRequests.length}
+                icon={AlertTriangle}
+                iconWrapperClassName="bg-amber-500/20"
+                iconClassName="text-amber-400"
+                className={activeOverviewFilter === 'pending' ? 'border-amber-400/40 bg-amber-400/10' : undefined}
+              />
+            </button>
+            <button type="button" onClick={() => handleOverviewFilterChange('approved')} className="text-left">
+              <StatCard
+                label="Approved"
+                value={approvedRequests.length}
+                icon={CheckCircle}
+                iconWrapperClassName="bg-emerald-500/20"
+                iconClassName="text-emerald-400"
+                className={activeOverviewFilter === 'approved' ? 'border-emerald-400/40 bg-emerald-400/10' : undefined}
+              />
+            </button>
+            <button type="button" onClick={() => handleOverviewFilterChange('blocked')} className="text-left">
+              <StatCard
+                label="Blocked"
+                value={rejectedRequests.length}
+                icon={Ban}
+                iconWrapperClassName="bg-red-500/20"
+                iconClassName="text-red-400"
+                className={activeOverviewFilter === 'blocked' ? 'border-red-400/40 bg-red-400/10' : undefined}
+              />
+            </button>
+          </div>
+
+          <div ref={overviewHistoryRef} className="scroll-mt-24">
+            <GlassPanel
+              title={overviewHistoryConfig.title}
+              description={overviewHistoryConfig.description}
+            >
+              <div className="space-y-4">
+              {activeOverviewFilter === 'protected' && (
+                <>
+                  {protectedPeople.length === 0 ? (
+                    <p className="py-8 text-center text-slate-400">No protected dependents yet.</p>
+                  ) : (
+                    protectedPeople.map((person) => (
+                      <div
+                        key={`history-${person.id}`}
+                        className="flex items-center justify-between gap-4 rounded-xl bg-slate-900/50 p-4"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-700">
+                            <User className="h-6 w-6 text-slate-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-white">{person.name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
+                              {person.email && (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Mail className="h-3.5 w-3.5" />
+                                  {person.email}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1.5">
+                                <Link2 className="h-3.5 w-3.5" />
+                                {person.serial}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                              Linked on {formatTimestamp(person.linkedAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
+                          Active Link
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+
+              {activeOverviewFilter === 'pending' && (
+                <>
+                  {pendingRequests.length === 0 ? (
+                    <p className="py-8 text-center text-slate-400">No pending transaction requests.</p>
+                  ) : (
+                    pendingRequests.map((request) => (
+                      <div
+                        key={`history-${request.id}`}
+                        className="rounded-xl border border-amber-500/20 bg-slate-900/50 p-4"
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="font-medium text-white">{request.title}</p>
+                            <p className="mt-1 text-sm text-slate-300">
+                              {request.linkNickname || request.dependentName || request.dependentSerial} requested{' '}
+                              {formatCurrency(request.amount)}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-400">{request.reason}</p>
+                            {request.details && (
+                              <p className="mt-1 text-sm text-slate-500">{request.details}</p>
+                            )}
+                            <p className="mt-2 text-xs text-slate-500">
+                              Submitted {formatTimestamp(request.createdAt)}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">
+                            Pending
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+
+              {activeOverviewFilter === 'approved' && (
+                <>
+                  {approvedRequests.length === 0 ? (
+                    <p className="py-8 text-center text-slate-400">No approved transaction requests yet.</p>
+                  ) : (
+                    approvedRequests.map((request) => (
+                      <div
+                        key={`history-${request.id}`}
+                        className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4"
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="font-medium text-white">{request.title}</p>
+                            <p className="mt-1 text-sm text-slate-300">
+                              {request.linkNickname || request.dependentName || request.dependentSerial} requested{' '}
+                              {formatCurrency(request.amount)}
+                            </p>
+                            <p className="mt-2 text-xs text-slate-500">
+                              Approved {formatTimestamp(request.resolvedAt ?? request.updatedAt ?? request.createdAt)}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
+                            Approved
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+
+              {activeOverviewFilter === 'blocked' && (
+                <>
+                  {rejectedRequests.length === 0 ? (
+                    <p className="py-8 text-center text-slate-400">No blocked transaction requests yet.</p>
+                  ) : (
+                    rejectedRequests.map((request) => (
+                      <div
+                        key={`history-${request.id}`}
+                        className="rounded-xl border border-red-500/20 bg-red-500/10 p-4"
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="font-medium text-white">{request.title}</p>
+                            <p className="mt-1 text-sm text-slate-300">
+                              {request.linkNickname || request.dependentName || request.dependentSerial} requested{' '}
+                              {formatCurrency(request.amount)}
+                            </p>
+                            <p className="mt-2 text-xs text-slate-500">
+                              Rejected {formatTimestamp(request.resolvedAt ?? request.updatedAt ?? request.createdAt)}
+                            </p>
+                            {request.rejectionReason && (
+                              <p className="mt-2 text-sm text-red-200">
+                                Reason: {request.rejectionReason}
+                              </p>
+                            )}
+                          </div>
+                          <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-medium text-red-300">
+                            Blocked
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+              </div>
+            </GlassPanel>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
