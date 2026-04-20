@@ -1,4 +1,4 @@
-import { VertexAI } from "@google-cloud/vertexai";
+import { SchemaType, VertexAI } from "@google-cloud/vertexai";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -24,6 +24,8 @@ const DEFAULT_VERTEX_CREDENTIALS = path.resolve(
 );
 const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
 const DEFAULT_MODEL_TIMEOUT_MS = 15000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 2048;
+const DEBUG_RAW_OUTPUT_ENABLED = process.env.AI_DEBUG_RAW_OUTPUT === "true";
 
 const resolvePath = (value) => {
   if (!value) {
@@ -42,6 +44,23 @@ const resolveExistingPath = (values) => {
   }
 
   return null;
+};
+
+const DEBUG_RAW_OUTPUT_PATH = resolvePath(
+  process.env.AI_DEBUG_RAW_OUTPUT_PATH || "debug/last-ai-response.json",
+);
+
+const readProjectId = (filePath) => {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return null;
+    }
+
+    const json = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return json.project_id || null;
+  } catch {
+    return null;
+  }
 };
 
 const parsePositiveInteger = (value, fallback) => {
@@ -69,9 +88,9 @@ const withTimeout = async (promise, timeoutMs, label) => {
 };
 
 const credentialsPath = resolveExistingPath([
-  process.env.GOOGLE_APPLICATION_CREDENTIALS,
   process.env.VERTEX_APPLICATION_CREDENTIALS,
   process.env.VERTEX_SERVICE_ACCOUNT_PATH,
+  process.env.GOOGLE_APPLICATION_CREDENTIALS,
   DEFAULT_VERTEX_CREDENTIALS,
 ]);
 
@@ -79,9 +98,32 @@ if (credentialsPath) {
   process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
 }
 
-const project = process.env.GOOGLE_CLOUD_PROJECT;
+const project =
+  process.env.VERTEX_PROJECT_ID ||
+  readProjectId(credentialsPath) ||
+  process.env.GOOGLE_CLOUD_PROJECT;
 const location = process.env.GOOGLE_CLOUD_LOCATION || "us-central1";
-const vertexAI = new VertexAI({ project, location });
+let vertexAI;
+
+if (project) {
+  process.env.GOOGLE_CLOUD_PROJECT = project;
+}
+
+const getVertexAI = () => {
+  if (vertexAI) {
+    return vertexAI;
+  }
+
+  if (!project) {
+    console.warn(
+      "Vertex AI project is not configured. Falling back to deterministic local analysis.",
+    );
+    return null;
+  }
+
+  vertexAI = new VertexAI({ project, location });
+  return vertexAI;
+};
 
 const clampScore = (value) => Math.max(0, Math.min(100, Math.round(value)));
 
@@ -111,6 +153,55 @@ const riskLevelToAction = (riskLevel) => {
 
 const deriveScamDetected = (score, patternCount) =>
   score >= 71 || (score >= 41 && patternCount >= 2);
+
+const RESPONSE_SCHEMA = {
+  type: SchemaType.OBJECT,
+  required: [
+    "risk_score",
+    "risk_level",
+    "scam_detected",
+    "patterns",
+    "verdict",
+    "reasons",
+    "explanation",
+    "recommended_action",
+  ],
+  properties: {
+    risk_score: {
+      type: SchemaType.INTEGER,
+      description: "Integer risk score from 0 to 100.",
+    },
+    risk_level: {
+      type: SchemaType.STRING,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+    },
+    scam_detected: {
+      type: SchemaType.BOOLEAN,
+    },
+    patterns: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.STRING,
+      },
+    },
+    verdict: {
+      type: SchemaType.STRING,
+    },
+    reasons: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.STRING,
+      },
+    },
+    explanation: {
+      type: SchemaType.STRING,
+    },
+    recommended_action: {
+      type: SchemaType.STRING,
+      enum: ["allow", "warn", "block"],
+    },
+  },
+};
 
 const toStringArray = (value) =>
   Array.isArray(value)
@@ -327,6 +418,39 @@ const buildFallbackAnalysis = ({
 
 const uniqueStrings = (items) => [...new Set(items.filter(Boolean))];
 
+const stripCodeFences = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+const removeTrailingCommas = (value) => value.replace(/,\s*([}\]])/g, "$1");
+
+const writeDebugOutput = (payload) => {
+  if (!DEBUG_RAW_OUTPUT_ENABLED || !DEBUG_RAW_OUTPUT_PATH) {
+    return;
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(DEBUG_RAW_OUTPUT_PATH), { recursive: true });
+    fs.writeFileSync(
+      DEBUG_RAW_OUTPUT_PATH,
+      JSON.stringify(payload, null, 2),
+      "utf8",
+    );
+    console.warn(`Saved raw AI debug output to ${DEBUG_RAW_OUTPUT_PATH}`);
+  } catch (error) {
+    console.warn(`Unable to save AI debug output: ${error.message}`);
+  }
+};
+
+const getCandidateText = (candidate) =>
+  (candidate?.content?.parts || [])
+    .map((part) => (typeof part?.text === "string" ? part.text : ""))
+    .join("")
+    .trim();
+
 const normalizeAIResponse = (data, fallbackAnalysis, modelName) => {
   if (!data || typeof data !== "object") {
     return fallbackAnalysis;
@@ -368,8 +492,39 @@ const normalizeAIResponse = (data, fallbackAnalysis, modelName) => {
 };
 
 const extractJsonPayload = (text) => {
-  const match = text.match(/\{[\s\S]*\}/);
-  return match ? match[0] : text;
+  const cleaned = stripCodeFences(text);
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+
+  if (start === -1 || end === -1 || end <= start) {
+    return cleaned;
+  }
+
+  return cleaned.slice(start, end + 1);
+};
+
+const parseModelJson = (text) => {
+  const attempts = uniqueStrings([
+    String(text || "").trim(),
+    stripCodeFences(text),
+    extractJsonPayload(text),
+    removeTrailingCommas(extractJsonPayload(text)),
+  ]).filter(Boolean);
+
+  let lastError;
+
+  for (const attempt of attempts) {
+    try {
+      return {
+        parsed: JSON.parse(attempt),
+        normalizedText: attempt,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Unable to parse model JSON output");
 };
 
 export const callGemini = async (prompt, fallbackAnalysis) => {
@@ -377,17 +532,27 @@ export const callGemini = async (prompt, fallbackAnalysis) => {
     process.env.AI_MODEL_TIMEOUT_MS,
     DEFAULT_MODEL_TIMEOUT_MS,
   );
+  const maxOutputTokens = parsePositiveInteger(
+    process.env.AI_MAX_OUTPUT_TOKENS,
+    DEFAULT_MAX_OUTPUT_TOKENS,
+  );
+  const client = getVertexAI();
+
+  if (!client) {
+    return fallbackAnalysis;
+  }
 
   for (const modelName of MODELS) {
     try {
       console.log(`Trying Vertex AI model (${location}): ${modelName}`);
 
-      const generativeModel = vertexAI.getGenerativeModel({
+      const generativeModel = client.getGenerativeModel({
         model: modelName,
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 1024,
+          maxOutputTokens,
           responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
         },
       });
 
@@ -405,23 +570,49 @@ export const callGemini = async (prompt, fallbackAnalysis) => {
       );
 
       const response = result.response;
-      const text =
-        response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+      const candidate = response?.candidates?.[0];
+      const text = getCandidateText(candidate);
 
       if (!text) {
         throw new Error("empty response from Vertex AI");
       }
 
       try {
-        const parsed = JSON.parse(extractJsonPayload(text));
+        const { parsed, normalizedText } = parseModelJson(text);
+
+        writeDebugOutput({
+          timestamp: new Date().toISOString(),
+          model: modelName,
+          stage: "success",
+          finishReason: candidate?.finishReason || null,
+          usageMetadata: response?.usageMetadata || null,
+          parts: candidate?.content?.parts || [],
+          raw_text: text,
+          parsed_text: normalizedText,
+          parsed_output: parsed,
+        });
+
         return normalizeAIResponse(parsed, fallbackAnalysis, modelName);
       } catch (error) {
         console.warn(
           `JSON parse failed for ${modelName}, using deterministic fallback: ${error.message}`,
         );
+
+        writeDebugOutput({
+          timestamp: new Date().toISOString(),
+          model: modelName,
+          stage: "json_parse_failed",
+          finishReason: candidate?.finishReason || null,
+          usageMetadata: response?.usageMetadata || null,
+          parts: candidate?.content?.parts || [],
+          parse_error: error.message,
+          raw_text: text,
+          extracted_json: extractJsonPayload(text),
+        });
+
         return {
           ...fallbackAnalysis,
-          explanation: fallbackAnalysis.explanation || text,
+          explanation: `${fallbackAnalysis.explanation} Raw model output could not be parsed.`,
         };
       }
     } catch (error) {

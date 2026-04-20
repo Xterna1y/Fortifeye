@@ -20,17 +20,19 @@ const DEFAULT_FIRESTORE_CREDENTIALS = path.resolve(
   "credentials/serviceAccountKey.json",
 );
 
-const DEFAULT_COLLECTION = "scam_patterns";
+const DEFAULT_COLLECTION = "entities";
 const DEFAULT_VECTOR_FIELD = "embedding";
 const DEFAULT_VECTOR_DISTANCE = "COSINE";
 const DEFAULT_MATCH_LIMIT = 5;
 const DEFAULT_SCAN_LIMIT = 50;
 const DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001";
+const DEFAULT_EMBEDDING_DIMENSION = 768;
 const DEFAULT_EMBEDDING_TIMEOUT_MS = 8000;
 const DEFAULT_FIRESTORE_TIMEOUT_MS = 8000;
 
 let firestoreClient;
 let googleAuth;
+const vectorFieldPresenceCache = new Map();
 
 const resolvePath = (value) => {
   if (!value) {
@@ -108,6 +110,35 @@ const truncate = (value, maxLength = 600) => {
 
 const uniqueStrings = (items) => [...new Set(items.filter(Boolean))];
 
+const getByPath = (value, dottedPath) => {
+  return dottedPath.split(".").reduce((current, segment) => {
+    if (!current || typeof current !== "object") {
+      return undefined;
+    }
+
+    return current[segment];
+  }, value);
+};
+
+const toStringArray = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => toStringArray(item))
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return [String(value)];
+  }
+
+  return [];
+};
+
 const pickCollectionNames = () => {
   const configured = [
     process.env.FIRESTORE_COLLECTIONS,
@@ -145,9 +176,9 @@ const getVertexConfig = () => {
   ]);
 
   const project =
-    process.env.GOOGLE_CLOUD_PROJECT ||
     process.env.VERTEX_PROJECT_ID ||
-    readProjectId(credentialsPath);
+    readProjectId(credentialsPath) ||
+    process.env.GOOGLE_CLOUD_PROJECT;
 
   return {
     credentialsPath,
@@ -169,8 +200,8 @@ const getFirestoreConfig = () => {
 
   const projectId =
     process.env.FIRESTORE_PROJECT_ID ||
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    readProjectId(credentialsPath);
+    readProjectId(credentialsPath) ||
+    process.env.GOOGLE_CLOUD_PROJECT;
 
   return { credentialsPath, projectId };
 };
@@ -438,38 +469,108 @@ export const extractSandboxSignals = (payload = {}) => {
 };
 
 const extractDocumentText = (data) => {
-  const preferredFields = [
-    "title",
-    "name",
-    "pattern",
-    "scam_type",
-    "category",
-    "description",
-    "summary",
-    "content",
-    "text",
-    "example",
-    "recommended_action",
-    "risk_level",
+  const fieldMappings = [
+    ["caption", "caption"],
+    ["title", "title"],
+    ["name", "name"],
+    ["properties.name", "aliases"],
+    ["pattern", "pattern"],
+    ["scam_type", "scam_type"],
+    ["category", "category"],
+    ["description", "description"],
+    ["summary", "summary"],
+    ["content", "content"],
+    ["text", "text"],
+    ["example", "example"],
+    ["properties.notes", "notes"],
+    ["website", "websites"],
+    ["topics", "topics"],
+    ["datasets", "datasets"],
+    ["schema", "schema"],
+    ["recommended_action", "recommended_action"],
+    ["risk_level", "risk_level"],
   ];
 
-  const parts = [];
+  const parts = fieldMappings
+    .map(([pathKey, label]) => {
+      const values = uniqueStrings(toStringArray(getByPath(data, pathKey)));
+      return values.length > 0 ? `${label}: ${values.join(", ")}` : null;
+    })
+    .filter(Boolean);
 
-  for (const field of preferredFields) {
-    const value = data[field];
+  if (typeof data.target === "boolean") {
+    parts.push(`target: ${data.target ? "true" : "false"}`);
+  }
 
-    if (typeof value === "string" && value.trim()) {
-      parts.push(`${field}: ${value.trim()}`);
-    } else if (Array.isArray(value) && value.length > 0) {
-      parts.push(`${field}: ${value.join(", ")}`);
+  return parts.length > 0 ? parts.join(" | ") : truncate(JSON.stringify(data));
+};
+
+const getPrimaryTitle = (data) => {
+  const candidates = [
+    data.title,
+    data.caption,
+    data.name,
+    getByPath(data, "properties.name"),
+  ];
+
+  for (const candidate of candidates) {
+    const values = toStringArray(candidate);
+    if (values.length > 0) {
+      return values[0];
     }
   }
 
-  if (parts.length > 0) {
-    return parts.join(" | ");
+  return null;
+};
+
+const getPrimaryCategory = (data) => {
+  const candidates = [
+    data.category,
+    data.scam_type,
+    data.schema,
+    data.topics,
+  ];
+
+  for (const candidate of candidates) {
+    const values = toStringArray(candidate);
+    if (values.length > 0) {
+      return values[0];
+    }
   }
 
-  return truncate(JSON.stringify(data));
+  return null;
+};
+
+const getTags = (data) =>
+  uniqueStrings([
+    ...toStringArray(data.tags),
+    ...toStringArray(data.topics),
+    ...toStringArray(data.datasets),
+  ]);
+
+const shouldIncludeDocument = (collectionName, data) => {
+  if (collectionName === "entities" && data?.target === false) {
+    return false;
+  }
+
+  return true;
+};
+
+const collectionLikelyHasVectorField = async (firestore, collectionName, vectorField) => {
+  const cacheKey = `${collectionName}:${vectorField}`;
+
+  if (vectorFieldPresenceCache.has(cacheKey)) {
+    return vectorFieldPresenceCache.get(cacheKey);
+  }
+
+  const snapshot = await firestore.collection(collectionName).limit(5).get();
+  const hasVectorField = snapshot.docs.some((doc) => {
+    const value = doc.data()?.[vectorField];
+    return Array.isArray(value) && value.length > 0;
+  });
+
+  vectorFieldPresenceCache.set(cacheKey, hasVectorField);
+  return hasVectorField;
 };
 
 const buildRetrievalQuery = (type, payload, extractedSignals) => {
@@ -529,9 +630,9 @@ const getQueryEmbedding = async (text) => {
   }
 
   const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${embeddingModel}:predict`;
-  const outputDimensionality = Number.parseInt(
-    process.env.RAG_EMBEDDING_DIMENSION || "",
-    10,
+  const outputDimensionality = parsePositiveInteger(
+    process.env.RAG_EMBEDDING_DIMENSION,
+    DEFAULT_EMBEDDING_DIMENSION,
   );
   const timeoutMs = parsePositiveInteger(
     process.env.RAG_EMBEDDING_TIMEOUT_MS,
@@ -590,9 +691,9 @@ const formatMatch = (snapshot, source, scoreField = null) => {
     score,
     snippet: extractDocumentText(data),
     metadata: {
-      title: data.title || data.name || null,
-      category: data.category || data.scam_type || null,
-      tags: Array.isArray(data.tags) ? data.tags : [],
+      title: getPrimaryTitle(data),
+      category: getPrimaryCategory(data),
+      tags: getTags(data),
     },
   };
 };
@@ -619,6 +720,16 @@ const queryVectorMatches = async (queryText) => {
   for (const collectionName of collectionNames) {
     for (const vectorField of vectorFields) {
       try {
+        const hasVectorField = await withTimeout(
+          collectionLikelyHasVectorField(firestore, collectionName, vectorField),
+          firestoreTimeoutMs,
+          `Firestore vector field inspection for ${collectionName}.${vectorField}`,
+        );
+
+        if (!hasVectorField) {
+          continue;
+        }
+
         const snapshot = await withTimeout(
           firestore
             .collection(collectionName)
@@ -685,6 +796,11 @@ const queryKeywordMatches = async (queryText) => {
 
       for (const doc of snapshot.docs) {
         const data = doc.data();
+
+        if (!shouldIncludeDocument(collectionName, data)) {
+          continue;
+        }
+
         const text = extractDocumentText(data);
         const docTokens = new Set(normalizeTokens(text));
         const overlap = [...queryTokens].filter((token) => docTokens.has(token));

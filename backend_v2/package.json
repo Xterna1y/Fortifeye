@@ -4,7 +4,7 @@
   "description": "Fortifeye backend with sandbox session monitoring flows",
   "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "nodemon --watch src --watch server.js --ignore node_modules --ignore src/data server.js",
     "start": "node server.js"
   },
   "dependencies": {
