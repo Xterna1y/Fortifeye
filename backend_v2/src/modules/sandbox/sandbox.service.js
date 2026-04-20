@@ -153,7 +153,7 @@ export const saveVerdict = (sessionId, verdict) => {
 
   session.verdict = verdict;
 
-  if (verdict?.recommended_action?.toLowerCase().includes("terminate")) {
+  if (verdict?.recommended_action?.toLowerCase() === "block") {
     session.status = "risk_flagged";
   }
 

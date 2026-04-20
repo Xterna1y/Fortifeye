@@ -1,13 +1,9 @@
-import { buildPrompt } from "../ai/promptBuilder.js";
-import { callGemini } from "../ai/gemini.service.js";
+import { analyzeTextRisk, analyzeUrlRisk } from "../ai/gemini.service.js";
 import { readData, writeData } from "../../config/db.js";
 import { v4 as uuid } from "uuid";
 
 export const scanText = async (text) => {
-  const prompt = buildPrompt("text", { text });
-
-  const aiResult = await callGemini(prompt);
-
+  const aiResult = await analyzeTextRisk({ text });
   const scans = readData("scans");
 
   const newScan = {
@@ -25,10 +21,7 @@ export const scanText = async (text) => {
 };
 
 export const scanUrl = async (url) => {
-  const prompt = buildPrompt("url", { url });
-
-  const aiResult = await callGemini(prompt);
-
+  const aiResult = await analyzeUrlRisk({ url });
   const scans = readData("scans");
 
   const newScan = {
@@ -47,5 +40,5 @@ export const scanUrl = async (url) => {
 
 export const getScan = (id) => {
   const scans = readData("scans");
-  return scans.find((s) => s.id === id);
+  return scans.find((scan) => scan.id === id);
 };
