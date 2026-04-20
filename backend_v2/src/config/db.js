@@ -2,18 +2,64 @@ import admin from "firebase-admin";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const backendRoot = path.resolve(__dirname, "../..");
+
+dotenv.config({ path: path.join(backendRoot, ".env") });
 
 let db = null;
 
-try {
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-    ? path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
-    : null;
+function resolveServiceAccountPath() {
+  const configuredPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 
-  if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+  if (!configuredPath) {
+    return null;
+  }
+
+  return path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.resolve(backendRoot, configuredPath);
+}
+
+function loadServiceAccount(serviceAccountPath) {
+  if (!fs.existsSync(serviceAccountPath)) {
+    throw new Error(`Firebase service account not found at ${serviceAccountPath}`);
+  }
+
+  const raw = fs.readFileSync(serviceAccountPath, "utf-8").trim();
+
+  if (!raw) {
+    throw new Error(`Firebase service account file is empty at ${serviceAccountPath}`);
+  }
+
+  let serviceAccount;
+
+  try {
+    serviceAccount = JSON.parse(raw);
+  } catch {
+    throw new Error(`Firebase service account file is not valid JSON at ${serviceAccountPath}`);
+  }
+
+  const requiredFields = ["project_id", "client_email", "private_key"];
+  const missingFields = requiredFields.filter((field) => !serviceAccount[field]);
+
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Firebase service account is missing required fields (${missingFields.join(", ")}) at ${serviceAccountPath}`
+    );
+  }
+
+  return serviceAccount;
+}
+
+try {
+  const serviceAccountPath = resolveServiceAccountPath();
+
+  if (serviceAccountPath) {
+    const serviceAccount = loadServiceAccount(serviceAccountPath);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });

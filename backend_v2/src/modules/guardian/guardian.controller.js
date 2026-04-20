@@ -59,6 +59,22 @@ export const getLinks = async (req, res) => {
   }
 };
 
+export const removeLink = async (req, res) => {
+  try {
+    const { linkId } = req.params;
+    const { userId } = req.query;
+
+    if (!linkId || !userId) {
+      return res.status(400).json({ message: "Link ID and user ID are required." });
+    }
+
+    const removedLink = await guardianService.removeLink(linkId, userId);
+    res.json(removedLink);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 export const getDependents = async (req, res) => {
   try {
     const { guardianId } = req.params;

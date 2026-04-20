@@ -38,7 +38,7 @@ interface TransactionRequest {
 export default function GuardianDashboardPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'settings'>('overview');
-  const { linkedAccounts, pendingIncomingRequests, currentRole, setRole, removeLink } = useGuardianLinking();
+  const { linkedAccounts, removeLink } = useGuardianLinking();
   const tabs: Array<{ key: 'overview' | 'requests' | 'settings'; label: string }> = [
     { key: 'overview', label: 'Overview' },
     { key: 'requests', label: 'Transaction Requests' },
@@ -96,46 +96,15 @@ export default function GuardianDashboardPage() {
             </button>
           }
         >
-          <div className="flex flex-col gap-3 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-medium text-white">
-                {currentRole === 'guardian' ? 'Guardian mode selected' : 'Dependent mode selected'}
-              </p>
-              <p className="text-slate-400">
-                Switch roles or send serial-based linking requests from the setup page. Incoming requests: {pendingIncomingRequests.length}.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setRole('guardian')}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  currentRole === 'guardian'
-                    ? 'bg-cyan-500/20 text-cyan-200'
-                    : 'bg-slate-700/70 text-slate-300 hover:text-white'
-                }`}
-              >
-                Guardian
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('dependent')}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  currentRole === 'dependent'
-                    ? 'bg-emerald-500/20 text-emerald-200'
-                    : 'bg-slate-700/70 text-slate-300 hover:text-white'
-                }`}
-              >
-                Dependent
-              </button>
-            </div>
-          </div>
           {linkedAccounts.length > 0 && (
-            <div className="mt-4 space-y-3">
+            <div className="space-y-3">
               {linkedAccounts.map((link) => (
                 <div key={link.requestId} className="flex items-center justify-between rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
                   <div>
-                    <p className="font-medium text-white">{link.serial}</p>
+                    <p className="font-medium text-white">{link.nickname || link.serial}</p>
+                    {link.nickname && (
+                      <p className="text-sm text-slate-500">Serial ID: {link.serial}</p>
+                    )}
                     <p className="text-sm text-slate-400">
                       Linked as a {link.role} on {new Date(link.linkedAt).toLocaleDateString()}.
                     </p>

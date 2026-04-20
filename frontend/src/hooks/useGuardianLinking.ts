@@ -18,9 +18,15 @@ export default function useGuardianLinking() {
 
   const refreshState = async () => {
     setIsLoading(true);
-    const nextState = await guardianLinkingService.getState();
-    setState(nextState);
-    setIsLoading(false);
+    try {
+      const nextState = await guardianLinkingService.getState();
+      setState(nextState);
+    } catch (error) {
+      console.error('Failed to refresh guardian linking state:', error);
+      setState(initialState);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -75,6 +81,11 @@ export default function useGuardianLinking() {
     declineRequest: async (requestId: string) => {
       const success = await guardianLinkingService.declineRequest(requestId);
       if (success) await refreshState();
+    },
+    removeLink: async (requestId: string) => {
+      const success = await guardianLinkingService.removeLink(requestId);
+      if (success) await refreshState();
+      return success;
     },
     refresh: refreshState
   };

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import logo from '../../assets/fortifeye_logo.png';
+import { saveStoredUser } from '../../utils/userSession';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function LoginPage() {
       }
 
       // Success! Store user in localStorage
-      localStorage.setItem('fortifeye.user', JSON.stringify(data));
+      saveStoredUser(data);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'An error occurred during authentication');

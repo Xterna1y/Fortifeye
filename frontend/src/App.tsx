@@ -7,6 +7,35 @@ import GuardianDashboardPage from './pages/Guardian/GuardianDashboardPage';
 import GuardianLinkSetupPage from './pages/Guardian/GuardianLinkSetupPage';
 import ProtectedPersonPage from './pages/Guardian/ProtectedPersonPage';
 import SandboxPage from './pages/Sandbox/SandboxPage';
+import { getStoredUser, isDependentUser, isGuardianUser } from './utils/userSession';
+
+function GuardianRoute() {
+  const user = getStoredUser();
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!isGuardianUser(user)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <GuardianDashboardPage />;
+}
+
+function ProtectedRoute() {
+  const user = getStoredUser();
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!isDependentUser(user)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <ProtectedPersonPage />;
+}
 
 function App() {
   return (
@@ -17,9 +46,9 @@ function App() {
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/input" element={<InputPage />} />
-          <Route path="/guardian" element={<GuardianDashboardPage />} />
+          <Route path="/guardian" element={<GuardianRoute />} />
           <Route path="/guardian-link" element={<GuardianLinkSetupPage />} />
-          <Route path="/protected" element={<ProtectedPersonPage />} />
+          <Route path="/protected" element={<ProtectedRoute />} />
           <Route path="/sandbox" element={<SandboxPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

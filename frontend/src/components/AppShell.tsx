@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   Activity,
@@ -14,6 +14,13 @@ import {
   X,
 } from 'lucide-react';
 import logo from '../assets/fortifeye_logo.png';
+import {
+  clearStoredUser,
+  getStoredUser,
+  isDependentUser,
+  isGuardianUser,
+  subscribeToStoredUser,
+} from '../utils/userSession';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,7 +31,31 @@ const navItems = [
   { to: '/protected', label: 'Protected', icon: CreditCard },
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  isGuardian,
+  isDependent,
+  onNavigate,
+}: {
+  isGuardian: boolean;
+  isDependent: boolean;
+  onNavigate?: () => void;
+}) {
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.filter((item) => {
+        if (item.to === '/guardian') {
+          return isGuardian;
+        }
+
+        if (item.to === '/protected') {
+          return isDependent;
+        }
+
+        return true;
+      }),
+    [isDependent, isGuardian],
+  );
+
   return (
     <div className="flex h-full flex-col">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
@@ -41,7 +72,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
 
         <nav className="space-y-2">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {visibleNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -89,7 +120,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mt-auto pt-6">
         <NavLink
           to="/"
-          onClick={onNavigate}
+          onClick={() => {
+            clearStoredUser();
+            onNavigate?.();
+          }}
           className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-sm font-medium text-slate-300 transition-all hover:border-red-400/30 hover:bg-red-500/10 hover:text-white"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800/80">
@@ -104,13 +138,19 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState(getStoredUser());
+
+  useEffect(() => subscribeToStoredUser(() => setUser(getStoredUser())), []);
+
+  const isGuardian = isGuardianUser(user);
+  const isDependent = isDependentUser(user);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.12),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.12),_transparent_30%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#111827_100%)]">
       <div className="lg:grid lg:min-h-screen lg:grid-cols-[18rem_minmax(0,1fr)]">
         <aside className="hidden border-r border-white/10 bg-slate-950/40 px-5 py-6 backdrop-blur-xl lg:block">
           <div className="sticky top-6 h-[calc(100vh-3rem)]">
-            <SidebarContent />
+            <SidebarContent isGuardian={isGuardian} isDependent={isDependent} />
           </div>
         </aside>
 
@@ -156,7 +196,11 @@ export default function AppShell() {
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                <SidebarContent onNavigate={() => setSidebarOpen(false)} />
+                <SidebarContent
+                  isGuardian={isGuardian}
+                  isDependent={isDependent}
+                  onNavigate={() => setSidebarOpen(false)}
+                />
               </div>
             </div>
           )}

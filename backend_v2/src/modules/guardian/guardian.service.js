@@ -165,3 +165,30 @@ export const getLinks = async (userId) => {
 
   return links;
 };
+
+export const removeLink = async (linkId, userId) => {
+  if (!db) throw new Error("Firebase not configured.");
+
+  const linkRef = db.collection("protectedPersons").doc(linkId);
+  const linkDoc = await linkRef.get();
+
+  if (!linkDoc.exists) {
+    throw new Error("Linked account not found.");
+  }
+
+  const linkData = linkDoc.data();
+  const isAuthorizedUser =
+    linkData.guardianId === userId || linkData.childId === userId;
+
+  if (!isAuthorizedUser) {
+    throw new Error("You do not have permission to remove this linked account.");
+  }
+
+  await linkRef.delete();
+
+  return {
+    id: linkId,
+    ...linkData,
+    removed: true,
+  };
+};

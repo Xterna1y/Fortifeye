@@ -1,20 +1,37 @@
 import type {
   GuardianLinkRequest,
   GuardianLinkingState,
-  GuardianRole,
   SendRequestResult,
 } from '../types/guardian';
+import { getStoredUser, getUserRole, saveStoredUser } from '../utils/userSession';
 
 const API_BASE_URL = 'http://localhost:5001/api/guardian';
+const REQUEST_TIMEOUT_MS = 5000;
 
-const getUser = () => {
-  const userJson = localStorage.getItem('fortifeye.user');
-  return userJson ? JSON.parse(userJson) : null;
-};
+async function fetchJson(url: string, init?: RequestInit) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || `Request failed with status ${response.status}`);
+    }
+
+    return data;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
 
 export const guardianLinkingService = {
   async getState(): Promise<GuardianLinkingState> {
-    const user = getUser();
+    const user = getStoredUser();
     if (!user) {
       return {
         currentRole: 'dependent',
@@ -25,14 +42,11 @@ export const guardianLinkingService = {
 
     // Fetch pending requests and accepted links from backend
     try {
-      const [requestsRes, linksRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/requests?userId=${user.id}`),
-        fetch(`${API_BASE_URL}/links?userId=${user.id}`)
+      const [requests, links] = await Promise.all([
+        fetchJson(`${API_BASE_URL}/requests?userId=${user.id}`),
+        fetchJson(`${API_BASE_URL}/links?userId=${user.id}`),
       ]);
-      
-      const requests = await requestsRes.json();
-      const links = await linksRes.json();
-      
+
       const allRequests: GuardianLinkRequest[] = [
         ...requests.map((req: any) => ({
           id: req.id,
@@ -59,7 +73,7 @@ export const guardianLinkingService = {
       ];
       
       return {
-        currentRole: user.identity === 'guardian' ? 'guardian' : 'dependent',
+        currentRole: getUserRole(user),
         serials: {
           guardian: user.serialId,
           dependent: user.serialId,
@@ -87,7 +101,7 @@ export const guardianLinkingService = {
   },
 
   async sendRequest(targetSerialInput: string): Promise<SendRequestResult> {
-    const user = getUser();
+    const user = getStoredUser();
     if (!user) return { ok: false, error: 'User not logged in.' };
 
     const targetSerial = targetSerialInput.trim().toUpperCase();
@@ -96,7 +110,7 @@ export const guardianLinkingService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/request`, {
+      await fetchJson(`${API_BASE_URL}/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,38 +120,31 @@ export const guardianLinkingService = {
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        return { ok: false, error: data.message };
-      }
-
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: 'Failed to send request.' };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Failed to send request.',
+      };
     }
   },
 
   async acceptRequest(requestId: string, nickname?: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/request/respond`, {
+      await fetchJson(`${API_BASE_URL}/request/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, status: 'accepted', nickname }),
       });
-      
-      if (response.ok) {
-        // Refresh user info in localStorage because identity might have changed
-        const user = getUser();
-        if (user) {
-          const profileRes = await fetch(`http://localhost:5001/api/auth/profile/${user.id}`);
-          const updatedUser = await profileRes.json();
-          if (profileRes.ok) {
-            localStorage.setItem('fortifeye.user', JSON.stringify(updatedUser));
-          }
-        }
+
+      // Refresh user info in localStorage because identity might have changed
+      const user = getStoredUser();
+      if (user) {
+        const updatedUser = await fetchJson(`http://localhost:5001/api/auth/profile/${user.id}`);
+        saveStoredUser(updatedUser);
       }
-      
-      return response.ok;
+
+      return true;
     } catch (error) {
       console.error('Failed to accept request:', error);
       return false;
@@ -146,14 +153,31 @@ export const guardianLinkingService = {
 
   async declineRequest(requestId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/request/respond`, {
+      await fetchJson(`${API_BASE_URL}/request/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, status: 'rejected' }),
       });
-      return response.ok;
+      return true;
     } catch (error) {
       console.error('Failed to decline request:', error);
+      return false;
+    }
+  },
+
+  async removeLink(linkId: string) {
+    const user = getStoredUser();
+    if (!user) {
+      return false;
+    }
+
+    try {
+      await fetchJson(`${API_BASE_URL}/links/${linkId}?userId=${user.id}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to remove linked account:', error);
       return false;
     }
   },
