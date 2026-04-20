@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Shield,
@@ -18,6 +18,7 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import StatCard from '../../components/ui/StatCard';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
+import useTransactionRequests from '../../hooks/useTransactionRequests';
 
 interface Alert {
   id: number;
@@ -46,9 +47,8 @@ export default function DashboardPage() {
     pendingIncomingRequests,
     pendingOutgoingRequests,
     linkedAccounts,
-    acceptRequest,
-    declineRequest,
   } = useGuardianLinking();
+  const { requests: transactionRequests } = useTransactionRequests();
   const [recentAlerts] = useState<Alert[]>([
     { id: 1, type: 'danger', message: 'High risk transaction detected', time: '2 min ago' },
     { id: 2, type: 'warning', message: 'Unusual login attempt blocked', time: '15 min ago' },
@@ -65,6 +65,103 @@ export default function DashboardPage() {
   const handleStartAnalysis = () => {
     navigate('/input');
   };
+
+  const guardianNotifications = useMemo(
+    () =>
+      [
+        ...pendingIncomingRequests.map((request) => ({
+          id: `link-${request.id}`,
+          type: 'link' as const,
+          title: request.requesterName || request.requesterEmail || request.requesterSerial,
+          description: `Wants to be your ${
+            request.requesterRole === 'guardian' ? 'guardian' : 'dependent'
+          }.`,
+          timestamp: request.createdAt,
+          actionLabel: 'Open Linking Setup',
+          actionPath: '/guardian-link',
+          tone: 'cyan' as const,
+        })),
+        ...transactionRequests
+          .filter((request) => request.status === 'pending')
+          .map((request) => ({
+            id: `transaction-${request.id}`,
+            type: 'transaction' as const,
+            title: request.linkNickname || request.dependentName || request.dependentSerial,
+            description: `${
+              new Intl.NumberFormat(undefined, {
+                style: 'currency',
+                currency: 'USD',
+                maximumFractionDigits: 2,
+              }).format(request.amount)
+            } for ${request.title}. ${request.reason}`,
+            timestamp: request.createdAt,
+            actionLabel: 'Open Guardian Page',
+            actionPath: '/guardian?tab=requests',
+            tone: 'emerald' as const,
+          })),
+      ].sort(
+        (first, second) =>
+          new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
+      ),
+    [pendingIncomingRequests, transactionRequests],
+  );
+
+  const dependentNotifications = useMemo(
+    () =>
+      [
+        ...pendingOutgoingRequests.map((request) => ({
+          id: `outgoing-link-${request.id}`,
+          type: 'link' as const,
+          title: request.targetSerial,
+          description: 'Pending response',
+          timestamp: request.createdAt,
+          actionLabel: 'Open Linking Details',
+          actionPath: '/guardian-link',
+          tone: 'cyan' as const,
+        })),
+        ...linkedAccounts.map((link) => ({
+          id: `linked-${link.requestId}`,
+          type: 'link' as const,
+          title: link.nickname || link.serial,
+          description: 'Linked successfully',
+          timestamp: link.linkedAt,
+          actionLabel: 'Open Linking Details',
+          actionPath: '/guardian-link',
+          tone: 'emerald' as const,
+        })),
+        ...transactionRequests.map((request) => ({
+          id: `request-${request.id}`,
+          type: 'transaction' as const,
+          title: request.title,
+          description: `${
+            new Intl.NumberFormat(undefined, {
+              style: 'currency',
+              currency: 'USD',
+              maximumFractionDigits: 2,
+            }).format(request.amount)
+          } • ${
+            request.status === 'approved'
+              ? 'Approved'
+              : request.status === 'rejected'
+                ? 'Rejected'
+                : 'Pending review'
+          }`,
+          timestamp: request.resolvedAt ?? request.createdAt,
+          actionLabel: 'Open Transaction Requests',
+          actionPath: '/protected?tab=transactions',
+          tone:
+            request.status === 'approved'
+              ? ('emerald' as const)
+              : request.status === 'rejected'
+                ? ('red' as const)
+                : ('amber' as const),
+        })),
+      ].sort(
+        (first, second) =>
+          new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
+      ),
+    [linkedAccounts, pendingOutgoingRequests, transactionRequests],
+  );
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -207,64 +304,59 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-white">Incoming Requests</h3>
-                    <p className="text-xs text-slate-400">Shortcut to new dependent linking requests</p>
+                    <p className="text-xs text-slate-400">
+                      New linking and transaction requests appear here
+                    </p>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  {pendingIncomingRequests.length === 0 ? (
+                <div className="-mr-2 max-h-[28rem] space-y-3 overflow-y-auto pr-3">
+                  {guardianNotifications.length === 0 ? (
                     <p className="text-sm leading-relaxed text-slate-300">
-                      No incoming requests right now. New requests will appear here as a shortcut.
+                      No incoming requests right now. New link and transaction requests will appear here as a shortcut.
                     </p>
                   ) : (
-                    pendingIncomingRequests.slice(0, 2).map((request) => (
-                      <div
-                        key={request.id}
-                        className="rounded-xl border border-amber-500/20 bg-slate-950/30 p-4"
-                      >
-                        <p className="font-medium text-white">
-                          {request.requesterName || request.requesterEmail || request.requesterSerial}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-300">
-                          Wants to be your {request.requesterRole === 'guardian' ? 'guardian' : 'dependent'}.
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Requested {formatTimestamp(request.createdAt)}
-                        </p>
-                        <div className="mt-3 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const name = window.prompt(
-                                'Enter a nickname for this person:',
-                                request.requesterName || ''
-                              );
-                              if (name !== null) {
-                                acceptRequest(request.id, name);
-                              }
-                            }}
-                            className="flex-1 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600"
+                    <>
+                      {guardianNotifications.map((notification) => (
+                        <button
+                          key={notification.id}
+                          type="button"
+                          onClick={() => navigate(notification.actionPath)}
+                          className={`w-full rounded-xl border p-4 text-left transition-all ${
+                            notification.tone === 'emerald'
+                              ? 'border-emerald-500/20 bg-slate-950/30 hover:border-emerald-400/40 hover:bg-slate-900/50'
+                              : 'border-amber-500/20 bg-slate-950/30 hover:border-amber-400/40 hover:bg-slate-900/50'
+                          }`}
+                        >
+                          <div className="mb-2 flex items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                                notification.tone === 'emerald'
+                                  ? 'bg-emerald-500/15 text-emerald-300'
+                                  : 'bg-cyan-500/15 text-cyan-300'
+                              }`}
+                            >
+                              {notification.type === 'transaction' ? 'Transaction' : 'Linking'}
+                            </span>
+                          </div>
+                          <p className="font-medium text-white">{notification.title}</p>
+                          <p className="mt-1 text-sm text-slate-300">{notification.description}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {formatTimestamp(notification.timestamp)}
+                          </p>
+                          <p
+                            className={`mt-3 text-xs font-medium uppercase tracking-[0.18em] ${
+                              notification.tone === 'emerald'
+                                ? 'text-emerald-300'
+                                : 'text-amber-300'
+                            }`}
                           >
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => declineRequest(request.id)}
-                            className="flex-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
-                          >
-                            Decline
-                          </button>
-                        </div>
-                      </div>
-                    ))
+                            {notification.actionLabel}
+                          </p>
+                        </button>
+                      ))}
+                    </>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/guardian-link')}
-                  className="mt-4 w-full rounded-xl bg-amber-500 py-3 font-medium text-white transition-all hover:bg-amber-600"
-                >
-                  Open Linking Setup
-                </button>
               </GlassPanel>
             ) : (
               <GlassPanel className="backdrop-blur-sm">
@@ -273,62 +365,68 @@ export default function DashboardPage() {
                     <Clock className="h-5 w-5 text-cyan-300" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Guardian Request Status</h3>
-                    <p className="text-xs text-slate-400">Track the guardian requests you have sent</p>
+                    <h3 className="font-semibold text-white">Status Updates</h3>
+                    <p className="text-xs text-slate-400">
+                      Track guardian linking and transaction request updates
+                    </p>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  {pendingOutgoingRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4"
+                <div className="-mr-2 max-h-[28rem] space-y-3 overflow-y-auto pr-3">
+                  {dependentNotifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() => navigate(notification.actionPath)}
+                      className={`w-full rounded-xl border p-4 text-left transition-all ${
+                        notification.tone === 'emerald'
+                          ? 'border-emerald-500/20 bg-emerald-500/10 hover:border-emerald-400/30 hover:bg-emerald-500/15'
+                          : notification.tone === 'red'
+                            ? 'border-red-500/20 bg-red-500/10 hover:border-red-400/30 hover:bg-red-500/15'
+                            : 'border-amber-500/20 bg-slate-900/50 hover:border-amber-400/30 hover:bg-slate-800/60'
+                      }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15">
-                          <Clock className="h-5 w-5 text-cyan-300" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">{request.targetSerial}</p>
-                          <p className="mt-1 text-sm text-slate-400">Status: Pending response</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Sent {formatTimestamp(request.createdAt)}
-                          </p>
-                        </div>
+                      <div className="mb-2 flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                            notification.tone === 'emerald'
+                              ? 'bg-emerald-500/15 text-emerald-300'
+                              : notification.tone === 'red'
+                                ? 'bg-red-500/15 text-red-300'
+                                : notification.type === 'link'
+                                  ? 'bg-cyan-500/15 text-cyan-300'
+                                  : 'bg-amber-500/15 text-amber-300'
+                          }`}
+                        >
+                          {notification.type === 'transaction' ? 'Transaction' : 'Linking'}
+                        </span>
                       </div>
-                    </div>
+                      <p className="font-medium text-white">{notification.title}</p>
+                      <p className="mt-1 text-sm text-slate-300">{notification.description}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatTimestamp(notification.timestamp)}
+                      </p>
+                      <p
+                        className={`mt-3 text-xs font-medium uppercase tracking-[0.18em] ${
+                          notification.tone === 'emerald'
+                            ? 'text-emerald-300'
+                            : notification.tone === 'red'
+                              ? 'text-red-300'
+                              : notification.type === 'link'
+                                ? 'text-cyan-300'
+                                : 'text-amber-300'
+                        }`}
+                      >
+                        {notification.actionLabel}
+                      </p>
+                    </button>
                   ))}
-                  {linkedAccounts.map((link) => (
-                    <div
-                      key={link.requestId}
-                      className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
-                          <Link2 className="h-5 w-5 text-emerald-300" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">{link.nickname || link.serial}</p>
-                          <p className="mt-1 text-sm text-emerald-200">Status: Linked successfully</p>
-                          <p className="mt-1 text-xs text-slate-400">
-                            Linked {formatTimestamp(link.linkedAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {pendingOutgoingRequests.length === 0 && linkedAccounts.length === 0 && (
+
+                  {dependentNotifications.length === 0 && (
                     <p className="text-sm leading-relaxed text-slate-300">
-                      You have not sent any guardian requests yet.
+                      No status updates yet. Guardian link and transaction updates will appear here.
                     </p>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/guardian-link')}
-                  className="mt-4 w-full rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-3 font-medium text-cyan-200 transition-all hover:bg-cyan-500/20"
-                >
-                  View Linking Details
-                </button>
               </GlassPanel>
             )}
 

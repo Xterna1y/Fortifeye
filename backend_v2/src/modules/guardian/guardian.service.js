@@ -7,6 +7,31 @@ const inMemoryPersons = [
 
 const getPersons = () => inMemoryPersons;
 
+const enrichTransactionRequestDoc = async (doc) => {
+  const data = doc.data();
+  const [guardianDoc, dependentDoc, linkDoc] = await Promise.all([
+    db.collection("users").doc(data.guardianId).get(),
+    db.collection("users").doc(data.dependentId).get(),
+    db.collection("protectedPersons").doc(data.linkId).get(),
+  ]);
+
+  const guardianData = guardianDoc.exists ? guardianDoc.data() : null;
+  const dependentData = dependentDoc.exists ? dependentDoc.data() : null;
+  const linkData = linkDoc.exists ? linkDoc.data() : null;
+
+  return {
+    id: doc.id,
+    ...data,
+    guardianName: guardianData?.name ?? null,
+    guardianEmail: guardianData?.email ?? null,
+    guardianSerial: guardianData?.serialId ?? null,
+    dependentName: dependentData?.name ?? null,
+    dependentEmail: dependentData?.email ?? null,
+    dependentSerial: dependentData?.serialId ?? null,
+    linkNickname: linkData?.nickname ?? null,
+  };
+};
+
 // --- Exported functions ---
 
 export const getDependents = async (guardianId) => {
@@ -284,4 +309,133 @@ export const updateLinkNickname = async (linkId, userId, nickname) => {
     id: updatedDoc.id,
     ...updatedDoc.data(),
   };
+};
+
+export const createTransactionRequest = async (
+  dependentId,
+  linkId,
+  amount,
+  title,
+  reason,
+  details = "",
+) => {
+  if (!db) throw new Error("Firebase not configured.");
+
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new Error("Amount must be greater than zero.");
+  }
+
+  const nextTitle = typeof title === "string" ? title.trim() : "";
+  const nextReason = typeof reason === "string" ? reason.trim() : "";
+  const nextDetails = typeof details === "string" ? details.trim() : "";
+
+  if (!nextTitle) {
+    throw new Error("Transaction title is required.");
+  }
+
+  if (!nextReason) {
+    throw new Error("Transaction reason is required.");
+  }
+
+  const linkRef = db.collection("protectedPersons").doc(linkId);
+  const linkDoc = await linkRef.get();
+
+  if (!linkDoc.exists) {
+    throw new Error("Linked guardian account not found.");
+  }
+
+  const linkData = linkDoc.data();
+
+  if (linkData.childId !== dependentId) {
+    throw new Error("You can only submit transaction requests for your own guardian link.");
+  }
+
+  const newRequest = {
+    linkId,
+    guardianId: linkData.guardianId,
+    dependentId,
+    amount: numericAmount,
+    title: nextTitle,
+    reason: nextReason,
+    details: nextDetails,
+    status: "pending",
+    rejectionReason: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const docRef = await db.collection("transactionRequests").add(newRequest);
+  const requestDoc = await docRef.get();
+  return enrichTransactionRequestDoc(requestDoc);
+};
+
+export const getTransactionRequests = async (userId) => {
+  if (!db) return [];
+
+  const requestsRef = db.collection("transactionRequests");
+  const [guardianSnapshot, dependentSnapshot] = await Promise.all([
+    requestsRef.where("guardianId", "==", userId).get(),
+    requestsRef.where("dependentId", "==", userId).get(),
+  ]);
+
+  const docsById = new Map();
+  [...guardianSnapshot.docs, ...dependentSnapshot.docs].forEach((doc) => {
+    docsById.set(doc.id, doc);
+  });
+
+  const enrichedRequests = await Promise.all(
+    [...docsById.values()].map((doc) => enrichTransactionRequestDoc(doc)),
+  );
+
+  return enrichedRequests.sort(
+    (first, second) =>
+      new Date(second.updatedAt ?? second.createdAt).getTime() -
+      new Date(first.updatedAt ?? first.createdAt).getTime(),
+  );
+};
+
+export const updateTransactionRequest = async (
+  requestId,
+  guardianId,
+  status,
+  rejectionReason = "",
+) => {
+  if (!db) throw new Error("Firebase not configured.");
+
+  if (!["approved", "rejected"].includes(status)) {
+    throw new Error("Invalid transaction request status.");
+  }
+
+  const requestRef = db.collection("transactionRequests").doc(requestId);
+  const requestDoc = await requestRef.get();
+
+  if (!requestDoc.exists) {
+    throw new Error("Transaction request not found.");
+  }
+
+  const requestData = requestDoc.data();
+
+  if (requestData.guardianId !== guardianId) {
+    throw new Error("You do not have permission to review this transaction request.");
+  }
+
+  if (requestData.status !== "pending") {
+    throw new Error("This transaction request has already been reviewed.");
+  }
+
+  const nextRejectionReason =
+    status === "rejected" && typeof rejectionReason === "string" && rejectionReason.trim()
+      ? rejectionReason.trim()
+      : null;
+
+  await requestRef.update({
+    status,
+    rejectionReason: nextRejectionReason,
+    resolvedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  const updatedDoc = await requestRef.get();
+  return enrichTransactionRequestDoc(updatedDoc);
 };

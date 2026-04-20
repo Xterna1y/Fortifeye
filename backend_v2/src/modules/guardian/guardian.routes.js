@@ -4,6 +4,9 @@ import {
   sendRequest, 
   getRequests, 
   getRequestHistory,
+  createTransactionRequest,
+  getTransactionRequests,
+  updateTransactionRequest,
   respondToRequest,
   getLinks,
   removeLink,
@@ -16,6 +19,9 @@ router.get("/dependents/:guardianId", getDependents);
 router.post("/request", sendRequest);
 router.get("/requests", getRequests);
 router.get("/requests/history", getRequestHistory);
+router.post("/transaction-requests", createTransactionRequest);
+router.get("/transaction-requests", getTransactionRequests);
+router.patch("/transaction-requests/:requestId", updateTransactionRequest);
 router.get("/links", getLinks);
 router.delete("/links/:linkId", removeLink);
 router.patch("/links/:linkId/nickname", updateLinkNickname);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Bell,
@@ -14,31 +14,14 @@ import {
   User,
   XCircle,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
 import StatCard from '../../components/ui/StatCard';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
-import { guardianLinkingService } from '../../services/guardianLinkingService';
+import useTransactionRequests from '../../hooks/useTransactionRequests';
 import { getStoredUser } from '../../utils/userSession';
-
-interface GuardianRequestHistoryItem {
-  id: string;
-  fromUserId: string;
-  toUserId: string;
-  type: 'guardian' | 'dependent';
-  status: 'pending' | 'accepted' | 'rejected';
-  nickname?: string | null;
-  createdAt: string;
-  respondedAt?: string;
-  requesterName?: string | null;
-  requesterEmail?: string | null;
-  requesterSerial?: string | null;
-  targetName?: string | null;
-  targetEmail?: string | null;
-  targetSerial?: string | null;
-}
 
 function formatTimestamp(value?: string) {
   if (!value) {
@@ -51,6 +34,14 @@ function formatTimestamp(value?: string) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function getDisplayName() {
@@ -73,48 +64,47 @@ function getDisplayName() {
 
 export default function ProtectedPersonPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'settings'>('overview');
-  const [requestHistory, setRequestHistory] = useState<GuardianRequestHistoryItem[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
-  const user = getStoredUser();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'settings'>('overview');
   const {
     linkedAccounts,
     pendingOutgoingRequests,
     updateLinkNickname,
   } = useGuardianLinking();
+  const {
+    requests: transactionRequests,
+    pendingRequests,
+    approvedRequests,
+    rejectedRequests,
+    isLoading: isTransactionsLoading,
+    createRequest,
+  } = useTransactionRequests();
+
   const [editingGuardianId, setEditingGuardianId] = useState<string | null>(null);
   const [nicknameInput, setNicknameInput] = useState('');
   const [nicknameFeedback, setNicknameFeedback] = useState<string | null>(null);
+  const [selectedLinkId, setSelectedLinkId] = useState('');
+  const [amountInput, setAmountInput] = useState('');
+  const [titleInput, setTitleInput] = useState('');
+  const [reasonInput, setReasonInput] = useState('');
+  const [detailsInput, setDetailsInput] = useState('');
+  const [requestFeedback, setRequestFeedback] = useState<string | null>(null);
+  const [requestTone, setRequestTone] = useState<'success' | 'error'>('success');
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
-  const tabs: Array<{ key: 'overview' | 'requests' | 'settings'; label: string }> = [
+  const tabs: Array<{ key: 'overview' | 'transactions' | 'settings'; label: string }> = [
     { key: 'overview', label: 'Overview' },
-    { key: 'requests', label: 'Request History' },
+    { key: 'transactions', label: 'Transaction Requests' },
     { key: 'settings', label: 'Privacy Settings' },
   ];
 
-  const loadHistory = useCallback(
-    async (cancelled = false) => {
-      setIsHistoryLoading(true);
-      const nextHistory = await guardianLinkingService.getRequestHistory();
-      if (!cancelled) {
-        setRequestHistory(nextHistory);
-        setIsHistoryLoading(false);
-      }
-    },
-    [],
-  );
-
   useEffect(() => {
-    let cancelled = false;
+    const tab = searchParams.get('tab');
 
-    loadHistory(cancelled);
-    const intervalId = window.setInterval(loadHistory, 10000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [loadHistory]);
+    if (tab === 'overview' || tab === 'transactions' || tab === 'settings') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const linkedGuardians = useMemo(
     () =>
@@ -130,10 +120,11 @@ export default function ProtectedPersonPage() {
     [linkedAccounts],
   );
 
-  const approvedCount = requestHistory.filter((request) => request.status === 'accepted').length;
-  const blockedCount = requestHistory.filter((request) => request.status === 'rejected').length;
-  const pendingCount = requestHistory.filter((request) => request.status === 'pending').length;
-  const completedRequests = requestHistory.filter((request) => request.status !== 'pending');
+  useEffect(() => {
+    if (!selectedLinkId && linkedGuardians[0]) {
+      setSelectedLinkId(linkedGuardians[0].id);
+    }
+  }, [linkedGuardians, selectedLinkId]);
 
   const alerts = useMemo(() => {
     const items = [];
@@ -150,29 +141,39 @@ export default function ProtectedPersonPage() {
 
     pendingOutgoingRequests.forEach((request) => {
       items.push({
-        id: `pending-${request.id}`,
+        id: `link-${request.id}`,
         type: 'warning' as const,
-        title: 'Guardian request pending',
+        title: 'Link request pending',
         detail: `Waiting for ${request.targetSerial} to respond.`,
         timestamp: request.createdAt,
       });
     });
 
-    completedRequests.slice(0, 5).forEach((request) => {
-      const counterpartyName =
-        request.fromUserId === user?.id
-          ? request.targetName || request.targetSerial || 'the other user'
-          : request.requesterName || request.requesterSerial || 'the other user';
+    transactionRequests.slice(0, 5).forEach((request) => {
+      const guardianName =
+        request.linkNickname || request.guardianName || request.guardianSerial || 'your guardian';
 
       items.push({
-        id: `history-${request.id}`,
-        type: request.status === 'accepted' ? ('success' as const) : ('info' as const),
+        id: `tx-${request.id}`,
+        type:
+          request.status === 'approved'
+            ? ('success' as const)
+            : request.status === 'rejected'
+              ? ('warning' as const)
+              : ('info' as const),
         title:
-          request.status === 'accepted'
-            ? 'Guardian request approved'
-            : 'Guardian request blocked',
-        detail: `${counterpartyName} ${request.status === 'accepted' ? 'accepted' : 'rejected'} the request.`,
-        timestamp: request.respondedAt ?? request.createdAt,
+          request.status === 'approved'
+            ? 'Transaction request approved'
+            : request.status === 'rejected'
+              ? 'Transaction request rejected'
+              : 'Transaction request pending',
+        detail:
+          request.status === 'pending'
+            ? `${guardianName} has not reviewed ${request.title} yet.`
+            : request.status === 'approved'
+              ? `${guardianName} approved ${request.title}.`
+              : `${guardianName} rejected ${request.title}${request.rejectionReason ? `: ${request.rejectionReason}` : '.'}`,
+        timestamp: request.resolvedAt ?? request.createdAt,
       });
     });
 
@@ -180,7 +181,7 @@ export default function ProtectedPersonPage() {
       (first, second) =>
         new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
     );
-  }, [completedRequests, linkedGuardians, pendingOutgoingRequests, user?.id]);
+  }, [linkedGuardians, pendingOutgoingRequests, transactionRequests]);
 
   const primaryGuardian = linkedGuardians[0];
   const displayName = getDisplayName();
@@ -204,23 +205,59 @@ export default function ProtectedPersonPage() {
     setNicknameFeedback('Unable to update guardian nickname.');
   };
 
+  const handleSubmitTransactionRequest = async () => {
+    setRequestFeedback(null);
+
+    if (!selectedLinkId) {
+      setRequestTone('error');
+      setRequestFeedback('Choose a guardian before submitting a request.');
+      return;
+    }
+
+    setIsSubmittingRequest(true);
+
+    try {
+      await createRequest({
+        linkId: selectedLinkId,
+        amount: Number(amountInput),
+        title: titleInput,
+        reason: reasonInput,
+        details: detailsInput,
+      });
+
+      setRequestTone('success');
+      setRequestFeedback('Transaction request sent to your guardian.');
+      setAmountInput('');
+      setTitleInput('');
+      setReasonInput('');
+      setDetailsInput('');
+    } catch (error) {
+      setRequestTone('error');
+      setRequestFeedback(
+        error instanceof Error ? error.message : 'Unable to submit transaction request.',
+      );
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title={`Welcome back, ${displayName}`}
-        description="Track your live guardian protection status and request activity."
+        description="Track your live guardian protection status and request funds when you need them."
       />
 
-      <div className="bg-gradient-to-br from-cyan-500 to-emerald-500 rounded-2xl p-6 mb-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+      <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 p-6">
+        <div className="absolute right-0 top-0 h-64 w-64 translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10" />
+        <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-1/2 translate-y-1/2 rounded-full bg-white/5" />
 
         <div className="relative z-10">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <span className="text-white/80 text-sm">Protection Status</span>
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <span className="text-sm text-white/80">Protection Status</span>
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-white/80" />
-              <span className="text-white/80 text-xs">
+              <Shield className="h-4 w-4 text-white/80" />
+              <span className="text-xs text-white/80">
                 {primaryGuardian ? 'Guardian Protected' : 'Protection Pending'}
               </span>
             </div>
@@ -228,13 +265,17 @@ export default function ProtectedPersonPage() {
 
           <div className="mb-4">
             <p className="text-3xl font-bold text-white">
-              {primaryGuardian ? primaryGuardian.name : pendingOutgoingRequests.length > 0 ? 'Waiting for response' : 'No guardian linked'}
+              {primaryGuardian
+                ? primaryGuardian.name
+                : pendingOutgoingRequests.length > 0
+                  ? 'Waiting for response'
+                  : 'No guardian linked'}
             </p>
-            <p className="mt-2 text-white/70 text-sm">
+            <p className="mt-2 text-sm text-white/70">
               {primaryGuardian
                 ? `${primaryGuardian.email || primaryGuardian.serial} is actively linked to your account.`
                 : pendingOutgoingRequests.length > 0
-                  ? `You have ${pendingOutgoingRequests.length} guardian request${pendingOutgoingRequests.length === 1 ? '' : 's'} pending.`
+                  ? `You have ${pendingOutgoingRequests.length} guardian link request${pendingOutgoingRequests.length === 1 ? '' : 's'} pending.`
                   : 'Open the linking page to send a guardian request.'}
             </p>
           </div>
@@ -252,37 +293,37 @@ export default function ProtectedPersonPage() {
       <GlassPanel padding="sm" className="mb-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-slate-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700">
+              <User className="h-5 w-5 text-slate-400" />
             </div>
             <div>
-              <p className="text-white font-medium">
+              <p className="font-medium text-white">
                 {primaryGuardian ? `Your Guardian: ${primaryGuardian.name}` : 'No guardian linked yet'}
               </p>
-              <p className="text-slate-400 text-sm">
+              <p className="text-sm text-slate-400">
                 {primaryGuardian
                   ? primaryGuardian.email || `Serial ID: ${primaryGuardian.serial}`
                   : pendingOutgoingRequests.length > 0
-                    ? 'A guardian request is still waiting for approval.'
-                    : 'Send a request to turn on live guardian protection.'}
+                    ? 'A guardian link request is still waiting for approval.'
+                    : 'Send a link request to turn on live guardian protection.'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {primaryGuardian ? (
               <>
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
-                <span className="text-emerald-400 text-sm">Active Protection</span>
+                <CheckCircle className="h-5 w-5 text-emerald-400" />
+                <span className="text-sm text-emerald-400">Active Protection</span>
               </>
             ) : pendingOutgoingRequests.length > 0 ? (
               <>
-                <Clock className="w-5 h-5 text-amber-400" />
-                <span className="text-amber-400 text-sm">Awaiting Response</span>
+                <Clock className="h-5 w-5 text-amber-400" />
+                <span className="text-sm text-amber-400">Awaiting Response</span>
               </>
             ) : (
               <>
-                <AlertTriangle className="w-5 h-5 text-slate-400" />
-                <span className="text-slate-400 text-sm">Not Linked</span>
+                <AlertTriangle className="h-5 w-5 text-slate-400" />
+                <span className="text-sm text-slate-400">Not Linked</span>
               </>
             )}
           </div>
@@ -303,21 +344,21 @@ export default function ProtectedPersonPage() {
             />
             <StatCard
               label="Pending"
-              value={pendingCount}
+              value={pendingRequests.length}
               icon={Clock}
               iconWrapperClassName="bg-amber-500/20"
               iconClassName="text-amber-400"
             />
             <StatCard
               label="Approved"
-              value={approvedCount}
+              value={approvedRequests.length}
               icon={CheckCircle}
               iconWrapperClassName="bg-emerald-500/20"
               iconClassName="text-emerald-400"
             />
             <StatCard
               label="Blocked"
-              value={blockedCount}
+              value={rejectedRequests.length}
               icon={XCircle}
               iconWrapperClassName="bg-red-500/20"
               iconClassName="text-red-400"
@@ -338,17 +379,14 @@ export default function ProtectedPersonPage() {
                   const isEditing = editingGuardianId === guardian.id;
 
                   return (
-                    <div
-                      key={guardian.id}
-                      className="rounded-xl bg-slate-900/50 p-4"
-                    >
+                    <div key={guardian.id} className="rounded-xl bg-slate-900/50 p-4">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center">
-                            <Shield className="w-6 h-6 text-cyan-300" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-700">
+                            <Shield className="h-6 w-6 text-cyan-300" />
                           </div>
                           <div>
-                            <p className="text-white font-medium">{guardian.name}</p>
+                            <p className="font-medium text-white">{guardian.name}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
                               {guardian.email && (
                                 <span className="inline-flex items-center gap-1.5">
@@ -361,7 +399,7 @@ export default function ProtectedPersonPage() {
                                 {guardian.serial}
                               </span>
                             </div>
-                            <p className="text-slate-500 text-xs mt-2">
+                            <p className="mt-2 text-xs text-slate-500">
                               Linked on {formatTimestamp(guardian.linkedAt)}
                             </p>
                           </div>
@@ -421,6 +459,7 @@ export default function ProtectedPersonPage() {
                   );
                 })
               )}
+
               {nicknameFeedback && (
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
                   {nicknameFeedback}
@@ -431,7 +470,7 @@ export default function ProtectedPersonPage() {
 
           <GlassPanel
             title="Protection Alerts"
-            description="Live alerts derived from your actual guardian link state and request history."
+            description="Live updates from your guardian link and transaction-request activity."
           >
             <div className="space-y-4">
               {alerts.length === 0 ? (
@@ -480,88 +519,196 @@ export default function ProtectedPersonPage() {
         </div>
       )}
 
-      {activeTab === 'requests' && (
+      {activeTab === 'transactions' && (
         <div className="space-y-6">
           <GlassPanel
-            title="Pending Requests"
-            description="Outgoing guardian requests that still need a response."
+            title="Request a Transaction"
+            description="Choose a guardian, set the amount, and explain why you need the money."
           >
-            <div className="space-y-4">
-              {pendingOutgoingRequests.length === 0 ? (
-                <p className="py-8 text-center text-slate-400">No pending guardian requests.</p>
-              ) : (
-                pendingOutgoingRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="rounded-xl border border-amber-500/20 bg-slate-900/50 p-4"
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Guardian
+                  </label>
+                  <select
+                    value={selectedLinkId}
+                    onChange={(event) => setSelectedLinkId(event.target.value)}
+                    disabled={linkedGuardians.length === 0}
+                    className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3 text-white focus:border-cyan-500 focus:outline-none disabled:opacity-50"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-medium text-white">
-                          Sent to {request.targetSerial}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-400">
-                          Waiting for the other user to accept your guardian link request.
-                        </p>
-                        <p className="mt-2 text-xs text-slate-500">
-                          Sent {formatTimestamp(request.createdAt)}
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">
-                        Pending
-                      </span>
-                    </div>
+                    {linkedGuardians.length === 0 ? (
+                      <option value="">No guardian linked</option>
+                    ) : (
+                      linkedGuardians.map((guardian) => (
+                        <option key={guardian.id} value={guardian.id}>
+                          {guardian.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-300">
+                      Amount
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={amountInput}
+                      onChange={(event) => setAmountInput(event.target.value)}
+                      className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+                      placeholder="250"
+                    />
                   </div>
-                ))
-              )}
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-300">
+                      Request Title
+                    </label>
+                    <input
+                      type="text"
+                      value={titleInput}
+                      onChange={(event) => setTitleInput(event.target.value)}
+                      className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+                      placeholder="School trip payment"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Reason
+                  </label>
+                  <input
+                    type="text"
+                    value={reasonInput}
+                    onChange={(event) => setReasonInput(event.target.value)}
+                    className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+                    placeholder="Need payment for next week's activity"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Additional Details
+                  </label>
+                  <textarea
+                    value={detailsInput}
+                    onChange={(event) => setDetailsInput(event.target.value)}
+                    rows={4}
+                    className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+                    placeholder="Add any extra details your guardian should know."
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSubmitTransactionRequest}
+                  disabled={isSubmittingRequest || linkedGuardians.length === 0}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  {isSubmittingRequest ? 'Sending Request...' : 'Send to Guardian'}
+                </button>
+
+                {requestFeedback && (
+                  <div
+                    className={`rounded-xl border px-4 py-3 text-sm ${
+                      requestTone === 'success'
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                        : 'border-red-500/30 bg-red-500/10 text-red-200'
+                    }`}
+                  >
+                    {requestFeedback}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-slate-950/35 p-5">
+                <h3 className="text-lg font-semibold text-white">Before You Send</h3>
+                <div className="mt-4 space-y-4 text-sm text-slate-300">
+                  <p>Include the exact amount you need so your guardian can approve quickly.</p>
+                  <p>Use the title for what the money is for, and the reason/details to explain why it matters.</p>
+                  <p>Once your guardian approves or rejects, this page will update automatically.</p>
+                </div>
+              </div>
             </div>
           </GlassPanel>
 
           <GlassPanel
-            title="Request History"
-            description="Approved and blocked outcomes loaded from the backend request history."
+            title="Your Transaction Requests"
+            description="Live request history with guardian decisions and rejection reasons."
           >
-            <div className="space-y-3">
-              {isHistoryLoading ? (
-                <p className="py-8 text-center text-slate-400">Loading request history...</p>
-              ) : completedRequests.length === 0 ? (
-                <p className="py-8 text-center text-slate-400">No completed request history yet.</p>
+            <div className="space-y-4">
+              {isTransactionsLoading ? (
+                <p className="py-8 text-center text-slate-400">Loading transaction requests...</p>
+              ) : transactionRequests.length === 0 ? (
+                <p className="py-8 text-center text-slate-400">No transaction requests yet.</p>
               ) : (
-                completedRequests.map((request) => {
-                  const counterpartyName =
-                    request.fromUserId === user?.id
-                      ? request.targetName || request.targetSerial || 'Unknown user'
-                      : request.requesterName || request.requesterSerial || 'Unknown user';
+                transactionRequests.map((request) => {
+                  const guardianName =
+                    request.linkNickname || request.guardianName || request.guardianSerial || 'Guardian';
 
                   return (
                     <div
                       key={request.id}
-                      className="flex items-center justify-between gap-4 rounded-lg bg-slate-900/50 p-3"
+                      className={`rounded-xl border p-4 ${
+                        request.status === 'approved'
+                          ? 'border-emerald-500/20 bg-emerald-500/10'
+                          : request.status === 'rejected'
+                            ? 'border-red-500/20 bg-red-500/10'
+                            : 'border-amber-500/20 bg-slate-900/50'
+                      }`}
                     >
-                      <div className="flex items-center gap-3">
-                        {request.status === 'accepted' ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-400" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-400" />
-                        )}
-                        <div>
-                          <p className="text-white text-sm">
-                            Request with {counterpartyName}
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <p className="text-lg font-semibold text-white">{request.title}</p>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                                request.status === 'approved'
+                                  ? 'bg-emerald-500/15 text-emerald-300'
+                                  : request.status === 'rejected'
+                                    ? 'bg-red-500/15 text-red-300'
+                                    : 'bg-amber-500/15 text-amber-300'
+                              }`}
+                            >
+                              {request.status === 'pending'
+                                ? 'Pending'
+                                : request.status === 'approved'
+                                  ? 'Approved'
+                                  : 'Rejected'}
+                            </span>
+                          </div>
+                          <p className="text-2xl font-bold text-white">{formatCurrency(request.amount)}</p>
+                          <p className="text-sm text-slate-300">
+                            <span className="font-medium text-white">Reason:</span> {request.reason}
                           </p>
-                          <p className="text-slate-500 text-xs">
-                            {formatTimestamp(request.respondedAt ?? request.createdAt)}
+                          {request.details && (
+                            <p className="text-sm text-slate-400">{request.details}</p>
+                          )}
+                          <p className="text-xs text-slate-500">
+                            Sent to {guardianName} on {formatTimestamp(request.createdAt)}
                           </p>
+                          {request.rejectionReason && (
+                            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                              <span className="font-semibold">Guardian reason:</span> {request.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 self-start">
+                          {request.status === 'approved' ? (
+                            <CheckCircle className="h-5 w-5 text-emerald-400" />
+                          ) : request.status === 'rejected' ? (
+                            <XCircle className="h-5 w-5 text-red-400" />
+                          ) : (
+                            <Clock className="h-5 w-5 text-amber-400" />
+                          )}
                         </div>
                       </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          request.status === 'accepted'
-                            ? 'bg-emerald-500/15 text-emerald-300'
-                            : 'bg-red-500/15 text-red-300'
-                        }`}
-                      >
-                        {request.status === 'accepted' ? 'Approved' : 'Blocked'}
-                      </span>
                     </div>
                   );
                 })
@@ -575,43 +722,43 @@ export default function ProtectedPersonPage() {
         <div className="space-y-6">
           <GlassPanel
             title="Privacy Settings"
-            description="These controls are still frontend-only placeholders, but the status above is now live."
+            description="These remain placeholder controls, but the transaction request flow above is fully live."
           >
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
+              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
-                  <Eye className="w-5 h-5 text-cyan-400" />
+                  <Eye className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="text-white font-medium">Share Transaction History</p>
-                    <p className="text-slate-400 text-sm">Allow guardian to view your transaction history</p>
+                    <p className="font-medium text-white">Share Transaction History</p>
+                    <p className="text-sm text-slate-400">Allow guardian to view your transaction history</p>
                   </div>
                 </div>
-                <button className="w-12 h-6 bg-cyan-500 rounded-full relative opacity-60">
-                  <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
+                <button className="relative h-6 w-12 rounded-full bg-cyan-500 opacity-60">
+                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
                 </button>
               </div>
-              <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
+              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
-                  <Bell className="w-5 h-5 text-cyan-400" />
+                  <Bell className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="text-white font-medium">Transaction Notifications</p>
-                    <p className="text-slate-400 text-sm">Get notified when guardian reviews your activity</p>
+                    <p className="font-medium text-white">Transaction Notifications</p>
+                    <p className="text-sm text-slate-400">Get notified when your guardian reviews requests</p>
                   </div>
                 </div>
-                <button className="w-12 h-6 bg-cyan-500 rounded-full relative opacity-60">
-                  <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
+                <button className="relative h-6 w-12 rounded-full bg-cyan-500 opacity-60">
+                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
                 </button>
               </div>
-              <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl">
+              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
-                  <Lock className="w-5 h-5 text-cyan-400" />
+                  <Lock className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="text-white font-medium">Large Transaction Approval</p>
-                    <p className="text-slate-400 text-sm">Require guardian approval for transactions over a threshold</p>
+                    <p className="font-medium text-white">Large Transaction Approval</p>
+                    <p className="text-sm text-slate-400">Require guardian approval before large transfers</p>
                   </div>
                 </div>
-                <button className="w-12 h-6 bg-cyan-500 rounded-full relative opacity-60">
-                  <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
+                <button className="relative h-6 w-12 rounded-full bg-cyan-500 opacity-60">
+                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
                 </button>
               </div>
             </div>
@@ -619,16 +766,16 @@ export default function ProtectedPersonPage() {
 
           <GlassPanel title="Guardian Contact">
             <div className="space-y-4">
-              <button className="w-full flex items-center justify-center gap-2 p-4 bg-slate-900/50 hover:bg-slate-700/50 rounded-xl transition-colors">
-                <MessageSquare className="w-5 h-5 text-cyan-400" />
+              <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900/50 p-4 transition-colors hover:bg-slate-700/50">
+                <MessageSquare className="h-5 w-5 text-cyan-400" />
                 <span className="text-white">Message Guardian</span>
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/guardian-link')}
-                className="w-full flex items-center justify-center gap-2 p-4 bg-slate-900/50 hover:bg-slate-700/50 rounded-xl transition-colors"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900/50 p-4 transition-colors hover:bg-slate-700/50"
               >
-                <Link2 className="w-5 h-5 text-amber-400" />
+                <Link2 className="h-5 w-5 text-amber-400" />
                 <span className="text-white">Manage Guardian Linking</span>
               </button>
             </div>

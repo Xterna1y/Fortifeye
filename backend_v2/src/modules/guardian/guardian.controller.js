@@ -42,6 +42,69 @@ export const getRequestHistory = async (req, res) => {
   }
 };
 
+export const createTransactionRequest = async (req, res) => {
+  try {
+    const { dependentId, linkId, amount, title, reason, details } = req.body;
+
+    if (!dependentId || !linkId || amount === undefined || !title || !reason) {
+      return res.status(400).json({
+        message: "Dependent ID, link ID, amount, title, and reason are required.",
+      });
+    }
+
+    const transactionRequest = await guardianService.createTransactionRequest(
+      dependentId,
+      linkId,
+      amount,
+      title,
+      reason,
+      details,
+    );
+
+    res.status(201).json(transactionRequest);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const getTransactionRequests = async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const requests = await guardianService.getTransactionRequests(userId);
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateTransactionRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { guardianId, status, rejectionReason } = req.body;
+
+    if (!requestId || !guardianId || !status) {
+      return res.status(400).json({
+        message: "Request ID, guardian ID, and status are required.",
+      });
+    }
+
+    const updatedRequest = await guardianService.updateTransactionRequest(
+      requestId,
+      guardianId,
+      status,
+      rejectionReason,
+    );
+
+    res.json(updatedRequest);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 export const respondToRequest = async (req, res) => {
   try {
     const { requestId, status, nickname } = req.body;
