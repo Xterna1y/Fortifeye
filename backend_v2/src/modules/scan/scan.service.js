@@ -1,5 +1,4 @@
-import { buildPrompt } from "../ai/promptBuilder.js";
-import { callGemini } from "../ai/gemini.service.js";
+import { analyzeTextRisk, analyzeUrlRisk } from "../ai/gemini.service.js";
 import { v4 as uuid } from "uuid";
 import { getGuardianForUser } from "../guardian/guardian.service.js";
 import { createAlert } from "../alerts/alert.service.js";
@@ -17,8 +16,7 @@ const persistScan = async (scan) => {
 };
 
 export const scanText = async (text, userId) => {
-  const prompt = buildPrompt("text", { text });
-  const aiResult = await callGemini(prompt, { type: "text", text });
+  const aiResult = await analyzeTextRisk({ text });
 
   const newScan = {
     id: uuid(),
@@ -51,8 +49,7 @@ export const scanText = async (text, userId) => {
 };
 
 export const scanUrl = async (url, userId) => {
-  const prompt = buildPrompt("url", { url });
-  const aiResult = await callGemini(prompt, { type: "url", url });
+  const aiResult = await analyzeUrlRisk({ url });
 
   const newScan = {
     id: uuid(),

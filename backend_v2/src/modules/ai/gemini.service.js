@@ -1,5 +1,7 @@
 import { VertexAI } from "@google-cloud/vertexai";
 import { buildPrompt } from "./promptBuilder.js";
+import { validateAIResponse } from "./ai.validator.js";
+import { buildAugmentedPayload } from "./rag.service.js";
 import {
   GOOGLE_APPLICATION_CREDENTIALS_PATH,
   GOOGLE_CLOUD_LOCATION,
@@ -158,6 +160,33 @@ const normalizeParsedResult = (parsed, fallbackExplanation) => {
   };
 };
 
+const ensureValidResponse = (result, fallbackExplanation) => {
+  const normalized = normalizeParsedResult(result, fallbackExplanation);
+  if (validateAIResponse(normalized)) {
+    return normalized;
+  }
+
+  return normalizeParsedResult(
+    {
+      risk_score: normalized.risk_score || 50,
+      risk_level: normalized.risk_level || "MEDIUM",
+      scam_detected: normalized.risk_level === "HIGH",
+      patterns: normalized.patterns || ["validation_error"],
+      verdict: normalized.verdict || "Analysis partial",
+      reasons:
+        normalized.reasons && normalized.reasons.length
+          ? normalized.reasons
+          : ["The AI response did not fully satisfy the required schema."],
+      explanation:
+        normalized.explanation ||
+        fallbackExplanation ||
+        "The AI response was normalized because some required fields were missing or invalid.",
+      recommended_action: normalized.recommended_action || "warn",
+    },
+    fallbackExplanation
+  );
+};
+
 export const callGemini = async (prompt, context = {}) => {
   for (const modelName of MODELS) {
     try {
@@ -219,12 +248,12 @@ export const callGemini = async (prompt, context = {}) => {
 
       try {
         const parsed = JSON.parse(cleaned);
-        return applyTextSafetyFloor(normalizeParsedResult(parsed, text), context);
+        return applyTextSafetyFloor(ensureValidResponse(parsed, text), context);
       } catch (parseErr) {
         console.warn("⚠️ JSON parse failed, attempting salvage");
         const salvaged = salvageJsonLikeResponse(text);
         if (salvaged) {
-          return applyTextSafetyFloor(salvaged, context);
+          return applyTextSafetyFloor(ensureValidResponse(salvaged, text), context);
         }
 
         console.warn("⚠️ Salvage failed, returning safe structure");
@@ -251,11 +280,36 @@ export const callGemini = async (prompt, context = {}) => {
 };
 
 export const analyzeSandboxRisk = async (input) => {
-  const prompt = buildPrompt("sandbox", input);
-  const aiResult = await callGemini(prompt, { type: "sandbox", ...input });
+  const augmentedInput = await buildAugmentedPayload("sandbox", input);
+  const prompt = buildPrompt("sandbox", augmentedInput);
+  const aiResult = await callGemini(prompt, { type: "sandbox", ...augmentedInput });
 
   return {
-    ...aiResult,
+    ...ensureValidResponse(aiResult, "Sandbox analysis completed with normalized output."),
     generated_at: new Date().toISOString(),
+    model: "vertex-gemini",
+  };
+};
+
+export const analyzeTextRisk = async (input) => {
+  const augmentedInput = await buildAugmentedPayload("text", input);
+  const prompt = buildPrompt("text", augmentedInput);
+  const aiResult = await callGemini(prompt, { type: "text", ...augmentedInput });
+
+  return {
+    ...ensureValidResponse(aiResult, "Text analysis completed with normalized output."),
+    model: "vertex-gemini",
+  };
+};
+
+export const analyzeUrlRisk = async (input) => {
+  const augmentedInput = await buildAugmentedPayload("url", input);
+  const prompt = buildPrompt("url", augmentedInput);
+  const aiResult = await callGemini(prompt, { type: "url", ...augmentedInput });
+
+  return {
+    ...ensureValidResponse(aiResult, "URL analysis completed with normalized output."),
+    generated_at: new Date().toISOString(),
+    model: "vertex-gemini",
   };
 };

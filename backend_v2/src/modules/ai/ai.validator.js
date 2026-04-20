@@ -1,9 +1,17 @@
 export const validateAIResponse = (data) => {
   return (
     data &&
-    ["safe", "suspicious", "dangerous"].includes(data.risk_level) &&
-    typeof data.risk_score === "number" &&
+    Number.isFinite(data.risk_score) &&
+    data.risk_score >= 0 &&
+    data.risk_score <= 100 &&
+    ["LOW", "MEDIUM", "HIGH"].includes(data.risk_level) &&
+    typeof data.scam_detected === "boolean" &&
+    Array.isArray(data.patterns) &&
+    data.patterns.every((pattern) => typeof pattern === "string") &&
     typeof data.verdict === "string" &&
-    typeof data.recommended_action === "string"
+    Array.isArray(data.reasons) &&
+    data.reasons.every((reason) => typeof reason === "string") &&
+    typeof data.explanation === "string" &&
+    ["allow", "warn", "block"].includes(data.recommended_action)
   );
 };
