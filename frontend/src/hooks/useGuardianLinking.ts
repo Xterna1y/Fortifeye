@@ -69,8 +69,8 @@ export default function useGuardianLinking() {
     linkedAccounts,
     pendingIncomingRequests,
     pendingOutgoingRequests,
-    sendRequest: async (targetSerial: string) => {
-      const result = await guardianLinkingService.sendRequest(targetSerial);
+    sendRequest: async (targetSerial: string, requestRole: GuardianRole) => {
+      const result = await guardianLinkingService.sendRequest(targetSerial, requestRole);
       await refreshState();
       return result;
     },

@@ -9,7 +9,9 @@ import {
 } from 'lucide-react';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
+import SegmentedTabs from '../../components/ui/SegmentedTabs';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
+import type { GuardianRole } from '../../types/guardian';
 
 function formatTimestamp(value?: string) {
   if (!value) {
@@ -42,6 +44,17 @@ export default function GuardianLinkSetupPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackTone, setFeedbackTone] = useState<'success' | 'error'>('success');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requestRole, setRequestRole] = useState<GuardianRole>('guardian');
+
+  const requestRoleTabs: Array<{ key: GuardianRole; label: string }> = [
+    { key: 'guardian', label: 'Send as Guardian' },
+    { key: 'dependent', label: 'Send as Dependent' },
+  ];
+
+  const requestRoleDescription =
+    requestRole === 'guardian'
+      ? 'Choose this if you want to become the guardian for the person you are linking.'
+      : 'Choose this if you want the other person to become your guardian.';
 
   const handleCopySerial = async () => {
     try {
@@ -57,7 +70,7 @@ export default function GuardianLinkSetupPage() {
   const handleSendRequest = async () => {
     setIsSubmitting(true);
     setFeedback(null);
-    const result = await sendRequest(targetSerialInput);
+    const result = await sendRequest(targetSerialInput, requestRole);
     setIsSubmitting(false);
 
     if (!result.ok) {
@@ -67,7 +80,9 @@ export default function GuardianLinkSetupPage() {
     }
 
     setFeedbackTone('success');
-    setFeedback(`Link request sent to ${targetSerialInput.trim().toUpperCase()}.`);
+    setFeedback(
+      `Link request sent to ${targetSerialInput.trim().toUpperCase()} as ${requestRole}.`
+    );
     setTargetSerialInput('');
   };
 
@@ -112,9 +127,21 @@ export default function GuardianLinkSetupPage() {
 
         <GlassPanel
           title="Send a Link Request"
-          description={`Enter the Serial ID of the user you want to connect with.`}
+          description="Choose the role for this request, then enter the Serial ID of the user you want to connect with."
         >
           <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                Request Role
+              </label>
+              <SegmentedTabs
+                activeTab={requestRole}
+                onChange={setRequestRole}
+                tabs={requestRoleTabs}
+                className="mb-3"
+              />
+              <p className="text-sm text-slate-400">{requestRoleDescription}</p>
+            </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 Target Serial ID

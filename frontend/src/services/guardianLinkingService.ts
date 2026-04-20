@@ -1,6 +1,7 @@
 import type {
   GuardianLinkRequest,
   GuardianLinkingState,
+  GuardianRole,
   SendRequestResult,
 } from '../types/guardian';
 import { getStoredUser, getUserRole, saveStoredUser } from '../utils/userSession';
@@ -100,7 +101,10 @@ export const guardianLinkingService = {
     return () => window.removeEventListener('storage', handleStorage);
   },
 
-  async sendRequest(targetSerialInput: string): Promise<SendRequestResult> {
+  async sendRequest(
+    targetSerialInput: string,
+    requestRole: GuardianRole
+  ): Promise<SendRequestResult> {
     const user = getStoredUser();
     if (!user) return { ok: false, error: 'User not logged in.' };
 
@@ -116,7 +120,7 @@ export const guardianLinkingService = {
         body: JSON.stringify({
           fromUserId: user.id,
           toSerialId: targetSerial,
-          type: user.identity === 'guardian' ? 'guardian' : 'dependent',
+          type: requestRole,
         }),
       });
 
