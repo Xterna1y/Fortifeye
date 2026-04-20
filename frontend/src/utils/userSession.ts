@@ -3,6 +3,7 @@ const USER_UPDATED_EVENT = 'fortifeye:user-updated';
 
 export interface StoredUser {
   id: string;
+  name?: string;
   email?: string;
   identity?: string;
   serialId?: string;

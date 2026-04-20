@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Activity,
   Bell,
   ChevronRight,
+  ChevronUp,
   CreditCard,
   Globe,
   LayoutDashboard,
   LogOut,
   Menu,
+  Settings,
   Shield,
   Link2,
-  X,
 } from 'lucide-react';
 import logo from '../assets/fortifeye_logo.png';
 import {
   clearStoredUser,
   getStoredUser,
+  getUserRole,
   isDependentUser,
   isGuardianUser,
   subscribeToStoredUser,
@@ -31,15 +33,41 @@ const navItems = [
   { to: '/protected', label: 'Protected', icon: CreditCard },
 ];
 
+function getDisplayName(user: ReturnType<typeof getStoredUser>) {
+  if (!user) {
+    return 'Guest User';
+  }
+
+  if (typeof user.name === 'string' && user.name.trim()) {
+    return user.name.trim();
+  }
+
+  if (typeof user.email === 'string' && user.email.includes('@')) {
+    return user.email.split('@')[0];
+  }
+
+  return 'Fortifeye User';
+}
+
+function getInitials(value: string) {
+  const parts = value.trim().split(/\s+/).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() || '').join('') || 'FE';
+}
+
 function SidebarContent({
   isGuardian,
   isDependent,
+  user,
   onNavigate,
 }: {
   isGuardian: boolean;
   isDependent: boolean;
+  user: ReturnType<typeof getStoredUser>;
   onNavigate?: () => void;
 }) {
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const visibleNavItems = useMemo(
     () =>
       navItems.filter((item) => {
@@ -55,6 +83,17 @@ function SidebarContent({
       }),
     [isDependent, isGuardian],
   );
+
+  const userRole = getUserRole(user);
+  const displayRole = userRole === 'guardian' ? 'Guardian' : 'Dependent';
+  const displayName = getDisplayName(user);
+  const initials = getInitials(displayName);
+
+  const handleAccountNavigation = (hash?: string) => {
+    setMenuOpen(false);
+    onNavigate?.();
+    navigate(hash ? `/account${hash}` : '/account');
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -99,7 +138,9 @@ function SidebarContent({
                   <span className="flex-1">{label}</span>
                   <ChevronRight
                     className={`h-4 w-4 transition-transform ${
-                      isActive ? 'translate-x-0 text-cyan-200' : 'text-slate-600 group-hover:translate-x-0.5 group-hover:text-slate-300'
+                      isActive
+                        ? 'translate-x-0 text-cyan-200'
+                        : 'text-slate-600 group-hover:translate-x-0.5 group-hover:text-slate-300'
                     }`}
                   />
                 </>
@@ -114,23 +155,66 @@ function SidebarContent({
           <Bell className="h-4 w-4" />
           <span className="text-xs font-semibold uppercase tracking-[0.24em]">Live Protection</span>
         </div>
-        <p className="text-sm text-slate-200">Analyze messages, screen links, and keep guardian controls one click away.</p>
+        <p className="text-sm text-slate-200">
+          Analyze messages, screen links, and keep guardian controls one click away.
+        </p>
       </div>
 
       <div className="mt-auto pt-6">
-        <NavLink
-          to="/"
-          onClick={() => {
-            clearStoredUser();
-            onNavigate?.();
-          }}
-          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-sm font-medium text-slate-300 transition-all hover:border-red-400/30 hover:bg-red-500/10 hover:text-white"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800/80">
-            <LogOut className="h-5 w-5" />
-          </span>
-          <span>Sign Out</span>
-        </NavLink>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((current) => !current)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-left text-sm font-medium text-slate-300 transition-all hover:border-cyan-400/20 hover:bg-white/5 hover:text-white"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-emerald-500 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20">
+              {initials}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-base font-semibold text-white">{displayName}</span>
+              <span className="block truncate text-xs uppercase tracking-[0.24em] text-slate-400">
+                {displayRole}
+              </span>
+            </span>
+            <ChevronUp
+              className={`h-4 w-4 text-slate-500 transition-transform ${
+                menuOpen ? 'rotate-0' : 'rotate-180'
+              }`}
+            />
+          </button>
+
+          {menuOpen && (
+            <div className="absolute bottom-[calc(100%+0.75rem)] left-0 right-0 rounded-3xl border border-white/10 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-xl">
+              <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="truncate text-base font-semibold text-white">{displayName}</p>
+                <p className="mt-1 truncate text-sm text-slate-400">
+                  {typeof user?.email === 'string' ? user.email : 'No email on file'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => handleAccountNavigation()}
+                  className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-slate-200 transition-all hover:bg-white/5"
+                >
+                  <Settings className="h-5 w-5 text-slate-400" />
+                  <span>Account Settings</span>
+                </button>
+                <NavLink
+                  to="/"
+                  onClick={() => {
+                    clearStoredUser();
+                    onNavigate?.();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-red-200 transition-all hover:bg-red-500/10"
+                >
+                  <LogOut className="h-5 w-5 text-red-300" />
+                  <span>Sign Out</span>
+                </NavLink>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -150,14 +234,14 @@ export default function AppShell() {
       <div className="lg:grid lg:min-h-screen lg:grid-cols-[18rem_minmax(0,1fr)]">
         <aside className="hidden border-r border-white/10 bg-slate-950/40 px-5 py-6 backdrop-blur-xl lg:block">
           <div className="sticky top-6 h-[calc(100vh-3rem)]">
-            <SidebarContent isGuardian={isGuardian} isDependent={isDependent} />
+            <SidebarContent isGuardian={isGuardian} isDependent={isDependent} user={user} />
           </div>
         </aside>
 
         <div className="min-w-0">
           <div className="border-b border-white/10 bg-slate-950/30 px-4 py-4 backdrop-blur-xl lg:hidden">
             <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <img
                   src={logo}
                   alt="Fortifeye logo"
@@ -165,7 +249,9 @@ export default function AppShell() {
                 />
                 <div>
                   <p className="text-base font-semibold text-white">Fortifeye</p>
-                  <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/70">Scam Shield</p>
+                  <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/70">
+                    Scam Shield
+                  </p>
                 </div>
               </div>
               <button
@@ -199,6 +285,7 @@ export default function AppShell() {
                 <SidebarContent
                   isGuardian={isGuardian}
                   isDependent={isDependent}
+                  user={user}
                   onNavigate={() => setSidebarOpen(false)}
                 />
               </div>

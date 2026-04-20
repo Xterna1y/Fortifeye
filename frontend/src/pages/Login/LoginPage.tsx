@@ -25,7 +25,7 @@ export default function LoginPage() {
       
       const payload = {
         email,
-        password, // Backend currently only checks email, but we send this anyway
+        password,
         ...(isLoginMode ? {} : { name: "New User", role: "user" })
       };
 

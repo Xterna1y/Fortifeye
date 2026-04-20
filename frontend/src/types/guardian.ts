@@ -7,7 +7,7 @@ export interface GuardianLinkRequest {
   requesterName?: string;
   requesterEmail?: string;
   targetSerial: string;
-  status: 'pending' | 'accepted' | 'declined';
+  status: 'pending' | 'accepted' | 'rejected';
   nickname?: string;
   createdAt: string;
   respondedAt?: string;
@@ -29,5 +29,7 @@ export interface LinkedGuardianAccount {
   serial: string;
   role: GuardianRole;
   nickname?: string;
+  name?: string;
+  email?: string;
   linkedAt: string;
 }

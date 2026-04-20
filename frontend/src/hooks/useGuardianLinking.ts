@@ -31,7 +31,13 @@ export default function useGuardianLinking() {
 
   useEffect(() => {
     refreshState();
-    return guardianLinkingService.subscribe(refreshState);
+    const unsubscribe = guardianLinkingService.subscribe(refreshState);
+    const intervalId = window.setInterval(refreshState, 10000);
+
+    return () => {
+      unsubscribe();
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const currentRole = state.currentRole;
@@ -48,6 +54,8 @@ export default function useGuardianLinking() {
       serial: request.requesterSerial === currentSerial ? request.targetSerial : request.requesterSerial,
       role: request.requesterSerial === currentSerial ? getTargetRole(request.requesterRole) : request.requesterRole,
       nickname: request.nickname,
+      name: request.requesterSerial === currentSerial ? undefined : request.requesterName,
+      email: request.requesterSerial === currentSerial ? undefined : request.requesterEmail,
       linkedAt: request.respondedAt ?? request.createdAt,
     }));
 
@@ -85,6 +93,13 @@ export default function useGuardianLinking() {
     removeLink: async (requestId: string) => {
       const success = await guardianLinkingService.removeLink(requestId);
       if (success) await refreshState();
+      return success;
+    },
+    updateLinkNickname: async (linkId: string, nickname: string) => {
+      const success = await guardianLinkingService.updateLinkNickname(linkId, nickname);
+      if (success) {
+        await refreshState();
+      }
       return success;
     },
     refresh: refreshState

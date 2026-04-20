@@ -185,4 +185,40 @@ export const guardianLinkingService = {
       return false;
     }
   },
+
+  async updateLinkNickname(linkId: string, nickname: string) {
+    const user = getStoredUser();
+    if (!user) {
+      return false;
+    }
+
+    try {
+      await fetchJson(`${API_BASE_URL}/links/${linkId}/nickname`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          nickname,
+        }),
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to update linked account nickname:', error);
+      return false;
+    }
+  },
+
+  async getRequestHistory() {
+    const user = getStoredUser();
+    if (!user) {
+      return [];
+    }
+
+    try {
+      return await fetchJson(`${API_BASE_URL}/requests/history?userId=${user.id}`);
+    } catch (error) {
+      console.error('Failed to fetch request history:', error);
+      return [];
+    }
+  },
 };

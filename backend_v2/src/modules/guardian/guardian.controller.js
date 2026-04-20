@@ -28,6 +28,20 @@ export const getRequests = async (req, res) => {
   }
 };
 
+export const getRequestHistory = async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const requests = await guardianService.getRequestHistory(userId);
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const respondToRequest = async (req, res) => {
   try {
     const { requestId, status, nickname } = req.body;
@@ -70,6 +84,22 @@ export const removeLink = async (req, res) => {
 
     const removedLink = await guardianService.removeLink(linkId, userId);
     res.json(removedLink);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const updateLinkNickname = async (req, res) => {
+  try {
+    const { linkId } = req.params;
+    const { userId, nickname } = req.body;
+
+    if (!linkId || !userId || !nickname) {
+      return res.status(400).json({ message: "Link ID, user ID, and nickname are required." });
+    }
+
+    const updatedLink = await guardianService.updateLinkNickname(linkId, userId, nickname);
+    res.json(updatedLink);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

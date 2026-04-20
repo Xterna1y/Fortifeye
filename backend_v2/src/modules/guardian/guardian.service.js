@@ -90,6 +90,64 @@ export const getPendingRequests = async (userId) => {
   return requests;
 };
 
+export const getRequestHistory = async (userId) => {
+  if (!db) return [];
+
+  const requestsRef = db.collection("linkingRequests");
+  const [incomingSnapshot, outgoingSnapshot] = await Promise.all([
+    requestsRef.where("toUserId", "==", userId).get(),
+    requestsRef.where("fromUserId", "==", userId).get(),
+  ]);
+
+  const docsById = new Map();
+  [...incomingSnapshot.docs, ...outgoingSnapshot.docs].forEach((doc) => {
+    docsById.set(doc.id, doc);
+  });
+
+  const userIds = new Set();
+  docsById.forEach((doc) => {
+    const data = doc.data();
+    if (data.fromUserId) {
+      userIds.add(data.fromUserId);
+    }
+    if (data.toUserId) {
+      userIds.add(data.toUserId);
+    }
+  });
+
+  const userDocs = await Promise.all(
+    [...userIds].map(async (id) => {
+      const doc = await db.collection("users").doc(id).get();
+      return [id, doc.exists ? doc.data() : null];
+    }),
+  );
+
+  const usersById = new Map(userDocs);
+
+  return [...docsById.values()]
+    .map((doc) => {
+      const data = doc.data();
+      const requesterData = usersById.get(data.fromUserId);
+      const targetData = usersById.get(data.toUserId);
+
+      return {
+        id: doc.id,
+        ...data,
+        requesterName: requesterData?.name ?? null,
+        requesterEmail: requesterData?.email ?? null,
+        requesterSerial: requesterData?.serialId ?? null,
+        targetName: targetData?.name ?? null,
+        targetEmail: targetData?.email ?? null,
+        targetSerial: targetData?.serialId ?? null,
+      };
+    })
+    .sort((a, b) => {
+      const first = new Date(b.respondedAt ?? b.createdAt).getTime();
+      const second = new Date(a.respondedAt ?? a.createdAt).getTime();
+      return first - second;
+    });
+};
+
 export const handleLinkingRequest = async (requestId, status, nickname = null) => {
   if (!db) throw new Error("Firebase not configured.");
 
@@ -190,5 +248,40 @@ export const removeLink = async (linkId, userId) => {
     id: linkId,
     ...linkData,
     removed: true,
+  };
+};
+
+export const updateLinkNickname = async (linkId, userId, nickname) => {
+  if (!db) throw new Error("Firebase not configured.");
+
+  const nextNickname = typeof nickname === "string" ? nickname.trim() : "";
+  if (!nextNickname) {
+    throw new Error("Nickname is required.");
+  }
+
+  const linkRef = db.collection("protectedPersons").doc(linkId);
+  const linkDoc = await linkRef.get();
+
+  if (!linkDoc.exists) {
+    throw new Error("Linked account not found.");
+  }
+
+  const linkData = linkDoc.data();
+  const isAuthorizedUser =
+    linkData.guardianId === userId || linkData.childId === userId;
+
+  if (!isAuthorizedUser) {
+    throw new Error("You do not have permission to update this nickname.");
+  }
+
+  await linkRef.update({
+    nickname: nextNickname,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const updatedDoc = await linkRef.get();
+  return {
+    id: updatedDoc.id,
+    ...updatedDoc.data(),
   };
 };

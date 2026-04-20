@@ -7,6 +7,7 @@ import GuardianDashboardPage from './pages/Guardian/GuardianDashboardPage';
 import GuardianLinkSetupPage from './pages/Guardian/GuardianLinkSetupPage';
 import ProtectedPersonPage from './pages/Guardian/ProtectedPersonPage';
 import SandboxPage from './pages/Sandbox/SandboxPage';
+import AccountPage from './pages/Account/AccountPage';
 import { getStoredUser, isDependentUser, isGuardianUser } from './utils/userSession';
 
 function GuardianRoute() {
@@ -50,6 +51,7 @@ function App() {
           <Route path="/guardian-link" element={<GuardianLinkSetupPage />} />
           <Route path="/protected" element={<ProtectedRoute />} />
           <Route path="/sandbox" element={<SandboxPage />} />
+          <Route path="/account" element={<AccountPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

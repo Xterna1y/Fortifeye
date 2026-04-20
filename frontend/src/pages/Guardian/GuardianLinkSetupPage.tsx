@@ -41,8 +41,10 @@ export default function GuardianLinkSetupPage() {
   } = useGuardianLinking();
   
   const [targetSerialInput, setTargetSerialInput] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [feedbackTone, setFeedbackTone] = useState<'success' | 'error'>('success');
+  const [requestFeedback, setRequestFeedback] = useState<string | null>(null);
+  const [requestFeedbackTone, setRequestFeedbackTone] = useState<'success' | 'error'>('success');
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [copyFeedbackTone, setCopyFeedbackTone] = useState<'success' | 'error'>('success');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestRole, setRequestRole] = useState<GuardianRole>('guardian');
 
@@ -59,28 +61,28 @@ export default function GuardianLinkSetupPage() {
   const handleCopySerial = async () => {
     try {
       await navigator.clipboard.writeText(currentSerial);
-      setFeedbackTone('success');
-      setFeedback('Serial ID copied.');
+      setCopyFeedbackTone('success');
+      setCopyFeedback('Serial ID copied.');
     } catch {
-      setFeedbackTone('error');
-      setFeedback('Could not copy the serial ID from this browser.');
+      setCopyFeedbackTone('error');
+      setCopyFeedback('Could not copy the serial ID from this browser.');
     }
   };
 
   const handleSendRequest = async () => {
     setIsSubmitting(true);
-    setFeedback(null);
+    setRequestFeedback(null);
     const result = await sendRequest(targetSerialInput, requestRole);
     setIsSubmitting(false);
 
     if (!result.ok) {
-      setFeedbackTone('error');
-      setFeedback(result.error ?? 'Unable to send request.');
+      setRequestFeedbackTone('error');
+      setRequestFeedback(result.error ?? 'Unable to send request.');
       return;
     }
 
-    setFeedbackTone('success');
-    setFeedback(
+    setRequestFeedbackTone('success');
+    setRequestFeedback(
       `Link request sent to ${targetSerialInput.trim().toUpperCase()} as ${requestRole}.`
     );
     setTargetSerialInput('');
@@ -123,6 +125,17 @@ export default function GuardianLinkSetupPage() {
           <p className="mt-4 text-sm text-slate-400">
             Current Identity: <span className="font-semibold text-cyan-400 capitalize">{currentRole}</span>
           </p>
+          {copyFeedback && (
+            <div
+              className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+                copyFeedbackTone === 'success'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                  : 'border-red-500/30 bg-red-500/10 text-red-200'
+              }`}
+            >
+              {copyFeedback}
+            </div>
+          )}
         </GlassPanel>
 
         <GlassPanel
@@ -163,15 +176,15 @@ export default function GuardianLinkSetupPage() {
               {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MailPlus className="h-5 w-5" />}
               Send Link Request
             </button>
-            {feedback && (
+            {requestFeedback && (
               <div
                 className={`rounded-xl border px-4 py-3 text-sm ${
-                  feedbackTone === 'success'
+                  requestFeedbackTone === 'success'
                     ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
                     : 'border-red-500/30 bg-red-500/10 text-red-200'
                 }`}
               >
-                {feedback}
+                {requestFeedback}
               </div>
             )}
           </div>
