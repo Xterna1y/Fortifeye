@@ -4,8 +4,9 @@ import type {
   GuardianRole,
   SendRequestResult,
 } from '../types/guardian';
+import { API_BASE_URL, parseJsonResponse } from '../config/api';
 
-const API_BASE_URL = 'http://localhost:5001/api/guardian';
+const GUARDIAN_API_BASE_URL = `${API_BASE_URL}/guardian`;
 
 const getUser = () => {
   const userJson = localStorage.getItem('fortifeye.user');
@@ -26,12 +27,12 @@ export const guardianLinkingService = {
     // Fetch pending requests and accepted links from backend
     try {
       const [requestsRes, linksRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/requests?userId=${user.id}`),
-        fetch(`${API_BASE_URL}/links?userId=${user.id}`)
+        fetch(`${GUARDIAN_API_BASE_URL}/requests?userId=${user.id}`),
+        fetch(`${GUARDIAN_API_BASE_URL}/links?userId=${user.id}`)
       ]);
       
-      const requests = await requestsRes.json();
-      const links = await linksRes.json();
+      const requests = await parseJsonResponse<any[]>(requestsRes);
+      const links = await parseJsonResponse<any[]>(linksRes);
       
       const allRequests: GuardianLinkRequest[] = [
         ...requests.map((req: any) => ({
@@ -96,7 +97,7 @@ export const guardianLinkingService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/request`, {
+      const response = await fetch(`${GUARDIAN_API_BASE_URL}/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,7 +107,7 @@ export const guardianLinkingService = {
         }),
       });
 
-      const data = await response.json();
+      const data = await parseJsonResponse<any>(response);
       if (!response.ok) {
         return { ok: false, error: data.message };
       }
@@ -119,7 +120,7 @@ export const guardianLinkingService = {
 
   async acceptRequest(requestId: string, nickname?: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/request/respond`, {
+      const response = await fetch(`${GUARDIAN_API_BASE_URL}/request/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, status: 'accepted', nickname }),
@@ -129,8 +130,8 @@ export const guardianLinkingService = {
         // Refresh user info in localStorage because identity might have changed
         const user = getUser();
         if (user) {
-          const profileRes = await fetch(`http://localhost:5001/api/auth/profile/${user.id}`);
-          const updatedUser = await profileRes.json();
+          const profileRes = await fetch(`${API_BASE_URL}/auth/profile/${user.id}`);
+          const updatedUser = await parseJsonResponse<any>(profileRes);
           if (profileRes.ok) {
             localStorage.setItem('fortifeye.user', JSON.stringify(updatedUser));
           }
@@ -146,7 +147,7 @@ export const guardianLinkingService = {
 
   async declineRequest(requestId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/request/respond`, {
+      const response = await fetch(`${GUARDIAN_API_BASE_URL}/request/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, status: 'rejected' }),

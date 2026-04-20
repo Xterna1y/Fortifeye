@@ -1,7 +1,7 @@
-const BASE_URL = "http://localhost:5001/api";
+import { API_BASE_URL, parseJsonResponse } from "../config/api";
 
 export async function openSandbox(url: string) {
-  const res = await fetch(`${BASE_URL}/sandbox/open`, {
+  const res = await fetch(`${API_BASE_URL}/sandbox/open`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -9,29 +9,29 @@ export async function openSandbox(url: string) {
     body: JSON.stringify({ url })
   });
 
-  return res.json();
+  return parseJsonResponse(res);
 }
 
-export async function scanText(text: string) {
-  const res = await fetch(`${BASE_URL}/scan/text`, {
+export async function scanText(text: string, userId?: string) {
+  const res = await fetch(`${API_BASE_URL}/scan/text`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ text })
+    body: JSON.stringify({ text, userId })
   });
 
-  return res.json();
+  return parseJsonResponse(res);
 }
 
-export async function scanUrl(url: string) {
-  const res = await fetch(`${BASE_URL}/scan/url`, {
+export async function scanUrl(url: string, userId?: string) {
+  const res = await fetch(`${API_BASE_URL}/scan/url`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ url })
+    body: JSON.stringify({ url, userId })
   });
 
-  return res.json();
+  return parseJsonResponse(res);
 }

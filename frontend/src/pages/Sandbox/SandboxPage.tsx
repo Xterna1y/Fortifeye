@@ -47,26 +47,12 @@ interface HistoryItem {
 
 export default function SandboxPage() {
   const [url, setUrl] = useState('');
-  const [sessions, setSessions] = useState<SandboxSession[]>([
-    {
-      id: '1',
-      url: 'https://example.com',
-      status: 'active',
-      startTime: '2 min ago',
-      blockedElements: 3
-    }
-  ]);
-  const [activeSession, setActiveSession] = useState<string | null>('1');
+  const [sessions, setSessions] = useState<SandboxSession[]>([]);
+  const [activeSession, setActiveSession] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
-  const [history, setHistory] = useState<HistoryItem[]>([
-    { id: '1', url: 'https://google.com', timestamp: 'Today, 10:30 AM', blockedElements: 0, status: 'safe' },
-    { id: '2', url: 'https://suspicious-link.com', timestamp: 'Today, 9:15 AM', blockedElements: 5, status: 'blocked' },
-    { id: '3', url: 'https://github.com', timestamp: 'Yesterday, 4:20 PM', blockedElements: 1, status: 'warning' },
-    { id: '4', url: 'https://linkedin.com', timestamp: 'Yesterday, 2:00 PM', blockedElements: 0, status: 'safe' },
-    { id: '5', url: 'https://phishing-test.net', timestamp: 'Mar 10, 2026', blockedElements: 8, status: 'blocked' },
-  ]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleOpenSandbox = async () => {
@@ -107,10 +93,8 @@ export default function SandboxPage() {
           : s
       ));
 
-      // Update active session if it matches the temporary ID
-      if (activeSession === newSession.id) {
-        setActiveSession(sandboxData.session_id || newSession.id);
-      }
+      // Always promote the resolved backend session as the active tab
+      setActiveSession(sandboxData.session_id || newSession.id);
 
       // Add to history
       const newHistoryItem: HistoryItem = {
@@ -130,10 +114,13 @@ export default function SandboxPage() {
   };
 
   const handleCloseSession = (id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-    if (activeSession === id) {
-      setActiveSession(sessions.length > 1 ? sessions[1].id : null);
-    }
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== id);
+      if (activeSession === id) {
+        setActiveSession(remaining[0]?.id ?? null);
+      }
+      return remaining;
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -188,6 +175,34 @@ export default function SandboxPage() {
     setSessions(prev => prev.map(s =>
       s.id === id ? { ...s, forceOpen: true } : s
     ));
+  };
+
+  const getViewportBadge = (session: SandboxSession) => {
+    if (session.status === 'active') {
+      return {
+        className: 'bg-emerald-500/20 text-emerald-400',
+        label: 'Isolated & Secure',
+      };
+    }
+
+    if (session.status === 'blocked') {
+      return {
+        className: 'bg-red-500/20 text-red-400',
+        label: 'High Risk Content',
+      };
+    }
+
+    if (session.status === 'loading') {
+      return {
+        className: 'bg-cyan-500/20 text-cyan-300',
+        label: 'Initializing',
+      };
+    }
+
+    return {
+      className: 'bg-orange-500/20 text-orange-300',
+      label: 'Load Error',
+    };
   };
 
   return (
@@ -460,10 +475,9 @@ export default function SandboxPage() {
                   </span>
                 </div>
                 {currentSession && (
-                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${currentSession.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                    }`}>
+                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getViewportBadge(currentSession).className}`}>
                     <Shield className="w-3 h-3" />
-                    {currentSession.status === 'active' ? 'Isolated & Secure' : 'High Risk Content'}
+                    {getViewportBadge(currentSession).label}
                   </div>
                 )}
               </div>

@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Shield,
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  MessageSquare, 
-  Mic, 
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  Mic,
   Bell,
   Activity,
   TrendingUp,
@@ -16,28 +16,90 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import StatCard from '../../components/ui/StatCard';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
+import { getDashboardData, type DashboardData } from '../../services/dashboardService';
 
-interface Alert {
-  id: number;
-  type: 'warning' | 'danger' | 'success';
-  message: string;
-  time: string;
+const defaultDashboard: DashboardData = {
+  stats: {
+    protected: 0,
+    blocked: 0,
+    verified: 0,
+    alerts: 0,
+  },
+  recentAlerts: [],
+  summary: {
+    messagesAnalyzed: 0,
+    callsScreened: 0,
+    threatsBlocked: 0,
+    safeTransactions: 0,
+  },
+  riskOverview: {
+    level: 'High',
+    safeScore: 100,
+  },
+  guardian: {
+    hasGuardian: false,
+  },
+  safetyTip:
+    'Banks will never ask for your password or PIN via phone or message. Always verify requests through official channels.',
+};
+
+function formatRelativeTime(timestamp: string) {
+  const time = new Date(timestamp).getTime();
+  if (!time) {
+    return 'Just now';
+  }
+
+  const diffMs = Date.now() - time;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
 }
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { hasGuardian } = useGuardianLinking();
-  const [recentAlerts] = useState<Alert[]>([
-    { id: 1, type: 'danger', message: 'High risk transaction detected', time: '2 min ago' },
-    { id: 2, type: 'warning', message: 'Unusual login attempt blocked', time: '15 min ago' },
-    { id: 3, type: 'success', message: 'Safe transaction verified', time: '1 hour ago' },
-  ]);
+  const { linkedAccounts, pendingIncomingRequests } = useGuardianLinking();
+  const [dashboard, setDashboard] = useState<DashboardData>(defaultDashboard);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const storedUser = localStorage.getItem('fortifeye.user');
+        const currentUser = storedUser ? JSON.parse(storedUser) : null;
+
+        if (!currentUser?.id) {
+          setDashboard(defaultDashboard);
+          return;
+        }
+
+        const data = await getDashboardData(currentUser.id);
+        setDashboard(data);
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+      } finally {
+        setIsLoadingDashboard(false);
+      }
+    };
+
+    loadDashboard();
+  }, []);
+
+  const hasGuardian =
+    linkedAccounts.some((account) => account.role === 'guardian') ||
+    dashboard.guardian.hasGuardian;
 
   const stats = [
-    { label: 'Protected', value: '12,847', icon: Shield, color: 'text-cyan-400' },
-    { label: 'Blocked', value: '1,239', icon: XCircle, color: 'text-red-400' },
-    { label: 'Verified', value: '8,562', icon: CheckCircle, color: 'text-emerald-400' },
-    { label: 'Alerts', value: '23', icon: Bell, color: 'text-amber-400' },
+    { label: 'Protected', value: dashboard.stats.protected.toLocaleString(), icon: Shield, color: 'text-cyan-400' },
+    { label: 'Blocked', value: dashboard.stats.blocked.toLocaleString(), icon: XCircle, color: 'text-red-400' },
+    { label: 'Verified', value: dashboard.stats.verified.toLocaleString(), icon: CheckCircle, color: 'text-emerald-400' },
+    { label: 'Alerts', value: dashboard.stats.alerts.toLocaleString(), icon: Bell, color: 'text-amber-400' },
   ];
 
   const handleStartAnalysis = () => {
@@ -46,215 +108,214 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <PageHeader
-          title="Welcome back!"
-          description="Your AI-powered financial guardian is always watching."
-        />
+      <PageHeader
+        title="Welcome back!"
+        description="Your AI-powered financial guardian is always watching."
+      />
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {stats.map((stat, index) => (
-            <StatCard
-              key={index}
-              label={stat.label}
-              value={stat.value}
-              icon={stat.icon}
-              iconClassName={stat.color}
-              iconWrapperClassName="bg-transparent"
-              valueClassName="mb-1"
-              className="backdrop-blur-sm"
-              trailing={<TrendingUp className="h-4 w-4 text-emerald-400" />}
-            />
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-4 mb-8 md:grid-cols-4">
+        {stats.map((stat, index) => (
+          <StatCard
+            key={index}
+            label={stat.label}
+            value={stat.value}
+            icon={stat.icon}
+            iconClassName={stat.color}
+            iconWrapperClassName="bg-transparent"
+            valueClassName="mb-1"
+            className="backdrop-blur-sm"
+            trailing={<TrendingUp className="h-4 w-4 text-emerald-400" />}
+          />
+        ))}
+      </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Action Panel */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Quick Analyze Card */}
-            <GlassPanel padding="lg" className="bg-gradient-to-br from-slate-800/80 to-slate-800/40">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
-                  <Activity className="w-6 h-6 text-cyan-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-white">Scam Detection</h2>
-                  <p className="text-slate-400 text-sm">Analyze messages or calls for potential scams</p>
-                </div>
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <GlassPanel padding="lg" className="bg-gradient-to-br from-slate-800/80 to-slate-800/40">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/20">
+                <Activity className="h-6 w-6 text-cyan-400" />
               </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Scam Detection</h2>
+                <p className="text-sm text-slate-400">Analyze messages or calls for potential scams</p>
+              </div>
+            </div>
 
-              {/* Analysis Options */}
-              <div className="grid sm:grid-cols-2 gap-4 mb-8">
-                <button
-                  onClick={handleStartAnalysis}
-                  className="group p-6 bg-slate-900/50 border border-slate-700/50 rounded-xl hover:border-cyan-500/50 hover:bg-slate-800/50 transition-all text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <MessageSquare className="w-6 h-6 text-cyan-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white mb-1">Text Analysis</h3>
-                      <p className="text-slate-400 text-sm">Paste a message to analyze</p>
-                    </div>
+            <div className="mb-8 grid gap-4 sm:grid-cols-2">
+              <button
+                onClick={handleStartAnalysis}
+                className="group rounded-xl border border-slate-700/50 bg-slate-900/50 p-6 text-left transition-all hover:border-cyan-500/50 hover:bg-slate-800/50"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/20 transition-transform group-hover:scale-110">
+                    <MessageSquare className="h-6 w-6 text-cyan-400" />
                   </div>
-                </button>
+                  <div>
+                    <h3 className="mb-1 font-semibold text-white">Text Analysis</h3>
+                    <p className="text-sm text-slate-400">Paste a message to analyze</p>
+                  </div>
+                </div>
+              </button>
 
-                <button
-                  onClick={handleStartAnalysis}
-                  className="group p-6 bg-slate-900/50 border border-slate-700/50 rounded-xl hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all text-left"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Mic className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white mb-1">Voice Analysis</h3>
-                      <p className="text-slate-400 text-sm">Record a voice message</p>
-                    </div>
+              <button
+                onClick={handleStartAnalysis}
+                className="group rounded-xl border border-slate-700/50 bg-slate-900/50 p-6 text-left transition-all hover:border-emerald-500/50 hover:bg-slate-800/50"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 transition-transform group-hover:scale-110">
+                    <Mic className="h-6 w-6 text-emerald-400" />
                   </div>
+                  <div>
+                    <h3 className="mb-1 font-semibold text-white">Voice Analysis</h3>
+                    <p className="text-sm text-slate-400">Record a voice message</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div className="border-t border-slate-700/50 pt-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold text-white">Recent Alerts</h3>
+                <button className="text-sm text-cyan-400 transition-colors hover:text-cyan-300">
+                  View all
                 </button>
               </div>
-
-              {/* Recent Activity Preview */}
-              <div className="border-t border-slate-700/50 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-white">Recent Alerts</h3>
-                  <button className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors">
-                    View all
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {recentAlerts.map((alert) => (
-                    <div 
+              <div className="space-y-3">
+                {dashboard.recentAlerts.length === 0 ? (
+                  <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4 text-sm text-slate-400">
+                    {isLoadingDashboard ? 'Loading recent activity...' : 'No recent activity found yet.'}
+                  </div>
+                ) : (
+                  dashboard.recentAlerts.map((alert) => (
+                    <div
                       key={alert.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl ${
-                        alert.type === 'danger' ? 'bg-red-500/10 border border-red-500/20' :
-                        alert.type === 'warning' ? 'bg-amber-500/10 border border-amber-500/20' :
-                        'bg-emerald-500/10 border border-emerald-500/20'
+                      className={`flex items-center gap-3 rounded-xl p-3 ${
+                        alert.type === 'danger'
+                          ? 'border border-red-500/20 bg-red-500/10'
+                          : alert.type === 'warning'
+                            ? 'border border-amber-500/20 bg-amber-500/10'
+                            : 'border border-emerald-500/20 bg-emerald-500/10'
                       }`}
                     >
                       {alert.type === 'danger' ? (
-                        <XCircle className="w-5 h-5 text-red-400" />
+                        <XCircle className="h-5 w-5 text-red-400" />
                       ) : alert.type === 'warning' ? (
-                        <AlertTriangle className="w-5 h-5 text-amber-400" />
+                        <AlertTriangle className="h-5 w-5 text-amber-400" />
                       ) : (
-                        <CheckCircle className="w-5 h-5 text-emerald-400" />
+                        <CheckCircle className="h-5 w-5 text-emerald-400" />
                       )}
                       <div className="flex-1">
-                        <p className="text-white text-sm">{alert.message}</p>
-                        <p className="text-slate-500 text-xs">{alert.time}</p>
+                        <p className="text-sm text-white">{alert.message}</p>
+                        <p className="text-xs text-slate-500">{formatRelativeTime(alert.createdAt)}</p>
                       </div>
                     </div>
-                  ))}
+                  ))
+                )}
+              </div>
+            </div>
+          </GlassPanel>
+
+          <GlassPanel className="backdrop-blur-sm">
+            <h3 className="mb-4 flex items-center gap-2 font-semibold text-white">
+              <Eye className="h-5 w-5 text-cyan-400" />
+              Risk Overview
+            </h3>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm text-slate-400">Protection Level</span>
+                  <span className="font-medium text-emerald-400">{dashboard.riskOverview.level}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-700">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500"
+                    style={{ width: `${dashboard.riskOverview.safeScore}%` }}
+                  />
                 </div>
               </div>
-            </GlassPanel>
-
-            {/* Risk Overview */}
-            <GlassPanel className="backdrop-blur-sm">
-              <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                <Eye className="w-5 h-5 text-cyan-400" />
-                Risk Overview
-              </h3>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-slate-400 text-sm">Protection Level</span>
-                    <span className="text-emerald-400 font-medium">High</span>
-                  </div>
-                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full w-[85%] bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full"></div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-3xl font-bold text-white">85%</p>
-                  <p className="text-slate-400 text-xs">Safe Score</p>
-                </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-white">{dashboard.riskOverview.safeScore}%</p>
+                <p className="text-xs text-slate-400">Safe Score</p>
               </div>
-            </GlassPanel>
-          </div>
-
-          {/* Side Panel */}
-          <div className="space-y-6">
-            {useGuardianLinking().pendingIncomingRequests.length > 0 && (
-              <GlassPanel className="border-amber-500/30 bg-amber-500/10">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
-                    <Bell className="h-5 w-5 text-amber-400 animate-bounce" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Link Request</h3>
-                    <p className="text-xs text-slate-400">You have a new connection request</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/guardian-link')}
-                  className="w-full rounded-xl bg-amber-500 py-3 font-medium text-white transition-all hover:bg-amber-600"
-                >
-                  View Requests
-                </button>
-              </GlassPanel>
-            )}
-
-            {!hasGuardian && (
-              <GlassPanel className="backdrop-blur-sm">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
-                    <Bell className="h-5 w-5 text-amber-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Guardian Mode</h3>
-                    <p className="text-xs text-slate-400">Add a trusted person to review risky activity</p>
-                  </div>
-                </div>
-                <p className="mb-4 text-sm leading-relaxed text-slate-300">
-                  Placeholder flow: link a guardian to this account so they can help approve or block suspicious actions later.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate('/guardian-link')}
-                  className="w-full rounded-xl border border-amber-500/30 bg-amber-500/20 py-3 font-medium text-amber-300 transition-all hover:bg-amber-500/30"
-                >
-                  Configure Guardian
-                </button>
-              </GlassPanel>
-            )}
-
-            {/* Quick Stats */}
-            <GlassPanel className="backdrop-blur-sm">
-              <h3 className="font-semibold text-white mb-4">Today's Summary</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 text-sm">Messages Analyzed</span>
-                  <span className="text-white font-medium">47</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 text-sm">Calls Screened</span>
-                  <span className="text-white font-medium">12</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 text-sm">Threats Blocked</span>
-                  <span className="text-red-400 font-medium">3</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 text-sm">Safe Transactions</span>
-                  <span className="text-emerald-400 font-medium">8</span>
-                </div>
-              </div>
-            </GlassPanel>
-
-            {/* Tips Card */}
-            <GlassPanel className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-emerald-500/10">
-              <h3 className="font-semibold text-white mb-3">💡 Safety Tip</h3>
-              <p className="text-slate-300 text-sm leading-relaxed">
-                Banks will never ask for your password or PIN via phone or message. 
-                Always verify requests through official channels.
-              </p>
-            </GlassPanel>
-          </div>
+            </div>
+          </GlassPanel>
         </div>
-      </main>
+
+        <div className="space-y-6">
+          {pendingIncomingRequests.length > 0 && (
+            <GlassPanel className="border-amber-500/30 bg-amber-500/10">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
+                  <Bell className="h-5 w-5 animate-bounce text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Link Request</h3>
+                  <p className="text-xs text-slate-400">You have a new connection request</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/guardian-link')}
+                className="w-full rounded-xl bg-amber-500 py-3 font-medium text-white transition-all hover:bg-amber-600"
+              >
+                View Requests
+              </button>
+            </GlassPanel>
+          )}
+
+          {!hasGuardian && (
+            <GlassPanel className="backdrop-blur-sm">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
+                  <Bell className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Guardian Mode</h3>
+                  <p className="text-xs text-slate-400">Add a trusted person to review risky activity</p>
+                </div>
+              </div>
+              <p className="mb-4 text-sm leading-relaxed text-slate-300">
+                Link a guardian to this account so they can help approve or block suspicious actions later.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/guardian-link')}
+                className="w-full rounded-xl border border-amber-500/30 bg-amber-500/20 py-3 font-medium text-amber-300 transition-all hover:bg-amber-500/30"
+              >
+                Configure Guardian
+              </button>
+            </GlassPanel>
+          )}
+
+          <GlassPanel className="backdrop-blur-sm">
+            <h3 className="mb-4 font-semibold text-white">Today's Summary</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Messages Analyzed</span>
+                <span className="font-medium text-white">{dashboard.summary.messagesAnalyzed}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Calls Screened</span>
+                <span className="font-medium text-white">{dashboard.summary.callsScreened}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Threats Blocked</span>
+                <span className="font-medium text-red-400">{dashboard.summary.threatsBlocked}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-400">Safe Transactions</span>
+                <span className="font-medium text-emerald-400">{dashboard.summary.safeTransactions}</span>
+              </div>
+            </div>
+          </GlassPanel>
+
+          <GlassPanel className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-emerald-500/10">
+            <h3 className="mb-3 font-semibold text-white">💡 Safety Tip</h3>
+            <p className="text-sm leading-relaxed text-slate-300">{dashboard.safetyTip}</p>
+          </GlassPanel>
+        </div>
+      </div>
+    </main>
   );
 }

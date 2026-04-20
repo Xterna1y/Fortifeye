@@ -77,17 +77,9 @@ export default function InputPage() {
 
     try {
       if (mode === 'text') {
-        const response = await fetch('http://localhost:5001/api/scan/text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to analyze text');
-        }
-
-        const data = await response.json();
+        const storedUser = localStorage.getItem('fortifeye.user');
+        const currentUser = storedUser ? JSON.parse(storedUser) : null;
+        const data = await scanText(text, currentUser?.id);
         setResult(data);
       } else {
         // Voice analysis is currently just a placeholder

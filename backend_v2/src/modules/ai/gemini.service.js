@@ -1,22 +1,31 @@
 import { VertexAI } from "@google-cloud/vertexai";
 import { buildPrompt } from "./promptBuilder.js";
-import dotenv from "dotenv";
-import path from "path";
+import {
+  GOOGLE_APPLICATION_CREDENTIALS_PATH,
+  GOOGLE_CLOUD_LOCATION,
+  GOOGLE_CLOUD_PROJECT,
+} from "../../config/env.js";
 
-dotenv.config();
-
-// Resolve credentials path
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve(
-    process.env.GOOGLE_APPLICATION_CREDENTIALS
-  );
+if (GOOGLE_APPLICATION_CREDENTIALS_PATH) {
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = GOOGLE_APPLICATION_CREDENTIALS_PATH;
 }
 
-const project = process.env.GOOGLE_CLOUD_PROJECT;
-const location = process.env.GOOGLE_CLOUD_LOCATION || "us-central1";
+const project = GOOGLE_CLOUD_PROJECT;
+const location = GOOGLE_CLOUD_LOCATION;
 
-// Initialize Vertex AI
-const vertexAI = new VertexAI({ project, location });
+let vertexAI = null;
+
+const getVertexAI = () => {
+  if (!project) {
+    throw new Error("GOOGLE_CLOUD_PROJECT is not configured");
+  }
+
+  if (!vertexAI) {
+    vertexAI = new VertexAI({ project, location });
+  }
+
+  return vertexAI;
+};
 
 // ✅ ONLY valid + stable models
 const MODELS = [
@@ -24,12 +33,137 @@ const MODELS = [
   "gemini-2.0-flash",
 ];
 
-export const callGemini = async (prompt) => {
+const normalizeRiskLevel = (riskLevel, score) => {
+  const normalized = (riskLevel || "").toUpperCase();
+  if (["LOW", "MEDIUM", "HIGH"].includes(normalized)) {
+    return normalized;
+  }
+
+  if (score >= 71) return "HIGH";
+  if (score >= 41) return "MEDIUM";
+  return "LOW";
+};
+
+const normalizeAction = (riskLevel, action) => {
+  const normalized = (action || "").toLowerCase();
+  if (["allow", "warn", "block"].includes(normalized)) {
+    return normalized;
+  }
+
+  if (riskLevel === "HIGH") return "block";
+  if (riskLevel === "MEDIUM") return "warn";
+  return "allow";
+};
+
+const extractPatterns = (rawText) => {
+  const match = rawText.match(/"patterns"\s*:\s*\[([\s\S]*?)\]/);
+  if (!match) return [];
+
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+};
+
+const salvageJsonLikeResponse = (rawText) => {
+  const scoreMatch = rawText.match(/"risk_score"\s*:\s*(\d+)/);
+  const levelMatch = rawText.match(/"risk_level"\s*:\s*"([^"]+)"/);
+  const detectedMatch = rawText.match(/"scam_detected"\s*:\s*(true|false)/);
+  const actionMatch = rawText.match(/"recommended_action"\s*:\s*"([^"]+)"/);
+  const verdictMatch = rawText.match(/"verdict"\s*:\s*"([^"]*)"/);
+  const explanationMatch = rawText.match(/"explanation"\s*:\s*"([\s\S]*?)"/);
+  const reasonsMatch = rawText.match(/"reasons"\s*:\s*\[([\s\S]*?)\]/);
+
+  if (!scoreMatch && !levelMatch && !actionMatch) {
+    return null;
+  }
+
+  const riskScore = scoreMatch ? Number(scoreMatch[1]) : 50;
+  const riskLevel = normalizeRiskLevel(levelMatch?.[1], riskScore);
+  const patterns = extractPatterns(rawText);
+  const reasons = reasonsMatch
+    ? [...reasonsMatch[1].matchAll(/"([^"]+)"/g)].map((item) => item[1])
+    : [];
+
+  return {
+    risk_score: riskScore,
+    risk_level: riskLevel,
+    scam_detected:
+      detectedMatch?.[1] === "true" || riskLevel === "HIGH" || riskScore >= 71,
+    patterns,
+    verdict: verdictMatch?.[1] || "Analysis complete",
+    reasons,
+    explanation:
+      explanationMatch?.[1] ||
+      "The AI response was only partially parseable, so the result was reconstructed from the returned fields.",
+    recommended_action: normalizeAction(riskLevel, actionMatch?.[1]),
+  };
+};
+
+const applyTextSafetyFloor = (result, context = {}) => {
+  if (context.type !== "text") {
+    return result;
+  }
+
+  const text = (context.text || "").toLowerCase();
+  const patterns = new Set(result.patterns || []);
+
+  const mentionsMoney =
+    /\b(rm|usd|\$|money|cash|transfer|bank in|bank transfer|pay|payment|send)\b/.test(text) ||
+    /\b\d{2,}\b/.test(text);
+  const directRequest =
+    /\b(give me|send me|transfer|bank in|pay me|please give|can you send)\b/.test(text);
+  const urgency = /\b(now|immediately|urgent|asap|today)\b/.test(text);
+
+  if (mentionsMoney && directRequest) {
+    patterns.add("financial_pressure");
+    const riskScore = Math.max(result.risk_score ?? 0, urgency ? 60 : 45);
+    const riskLevel = normalizeRiskLevel(result.risk_level, riskScore);
+    const recommendedAction = normalizeAction(riskLevel, result.recommended_action);
+
+    return {
+      ...result,
+      risk_score: riskScore,
+      risk_level: riskLevel,
+      scam_detected: riskLevel !== "LOW",
+      patterns: [...patterns],
+      reasons:
+        result.reasons && result.reasons.length > 0
+          ? result.reasons
+          : ["The message includes a direct request for money, which is a common scam pressure signal."],
+      explanation:
+        result.explanation && !result.explanation.trim().startsWith("{")
+          ? result.explanation
+          : "This message directly asks for money, so it should not be treated as zero-risk even if the model output was incomplete or inconsistent.",
+      recommended_action: recommendedAction,
+    };
+  }
+
+  return result;
+};
+
+const normalizeParsedResult = (parsed, fallbackExplanation) => {
+  const riskScore = Math.max(0, Math.min(100, Number(parsed.risk_score ?? 50)));
+  const riskLevel = normalizeRiskLevel(parsed.risk_level, riskScore);
+
+  return {
+    risk_score: riskScore,
+    risk_level: riskLevel,
+    scam_detected: parsed.scam_detected ?? riskLevel === "HIGH",
+    patterns: Array.isArray(parsed.patterns) ? parsed.patterns : [],
+    verdict: parsed.verdict ?? "Analysis complete",
+    reasons: Array.isArray(parsed.reasons) ? parsed.reasons : [],
+    explanation:
+      typeof parsed.explanation === "string" && parsed.explanation.trim()
+        ? parsed.explanation
+        : fallbackExplanation,
+    recommended_action: normalizeAction(riskLevel, parsed.recommended_action),
+  };
+};
+
+export const callGemini = async (prompt, context = {}) => {
   for (const modelName of MODELS) {
     try {
       console.log(`🚀 Trying Vertex AI model (${location}): ${modelName}`);
 
-      const generativeModel = vertexAI.getGenerativeModel({
+      const generativeModel = getVertexAI().getGenerativeModel({
         model: modelName,
         generationConfig: {
           temperature: 0.2,
@@ -66,32 +200,34 @@ export const callGemini = async (prompt) => {
         cleaned = jsonMatch[0];
       }
 
-      const createFallback = (rawText) => ({
-        risk_score: 50,
-        risk_level: "MEDIUM",
-        scam_detected: false,
-        patterns: ["parse_error"],
-        verdict: "Analysis partial",
-        reasons: ["The AI response was malformed or truncated."],
-        explanation: rawText || "The AI failed to provide a readable analysis.",
-        recommended_action: "warn",
-      });
+      const createFallback = (rawText) =>
+        applyTextSafetyFloor(
+          {
+            risk_score: 50,
+            risk_level: "MEDIUM",
+            scam_detected: false,
+            patterns: ["parse_error"],
+            verdict: "Analysis partial",
+            reasons: ["The AI response was malformed or truncated."],
+            explanation:
+              "The AI returned a malformed response, so a safe fallback assessment was used.",
+            recommended_action: "warn",
+            raw_ai_output: rawText,
+          },
+          context
+        );
 
       try {
         const parsed = JSON.parse(cleaned);
-        // Ensure all required fields exist for the frontend
-        return {
-          risk_score: parsed.risk_score ?? 50,
-          risk_level: parsed.risk_level ?? "MEDIUM",
-          scam_detected: parsed.scam_detected ?? false,
-          patterns: parsed.patterns ?? [],
-          verdict: parsed.verdict ?? "Analysis complete",
-          reasons: parsed.reasons ?? [],
-          explanation: parsed.explanation ?? text,
-          recommended_action: parsed.recommended_action ?? "warn",
-        };
+        return applyTextSafetyFloor(normalizeParsedResult(parsed, text), context);
       } catch (parseErr) {
-        console.warn("⚠️ JSON parse failed, returning safe structure");
+        console.warn("⚠️ JSON parse failed, attempting salvage");
+        const salvaged = salvageJsonLikeResponse(text);
+        if (salvaged) {
+          return applyTextSafetyFloor(salvaged, context);
+        }
+
+        console.warn("⚠️ Salvage failed, returning safe structure");
         return createFallback(text);
       }
     } catch (err) {
@@ -116,7 +252,7 @@ export const callGemini = async (prompt) => {
 
 export const analyzeSandboxRisk = async (input) => {
   const prompt = buildPrompt("sandbox", input);
-  const aiResult = await callGemini(prompt);
+  const aiResult = await callGemini(prompt, { type: "sandbox", ...input });
 
   return {
     ...aiResult,

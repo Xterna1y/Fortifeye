@@ -1,16 +1,11 @@
 import admin from "firebase-admin";
 import fs from "fs";
-import path from "path";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { FIREBASE_SERVICE_ACCOUNT_PATH } from "./env.js";
 
 let db = null;
 
 try {
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-    ? path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
-    : null;
+  const serviceAccountPath = FIREBASE_SERVICE_ACCOUNT_PATH;
 
   if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));

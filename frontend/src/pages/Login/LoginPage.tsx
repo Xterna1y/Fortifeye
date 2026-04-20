@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import logo from '../../assets/fortifeye_logo.png';
+import { API_BASE_URL, parseJsonResponse } from '../../config/api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -19,12 +20,12 @@ export default function LoginPage() {
     
     try {
       const endpoint = isLoginMode 
-        ? 'http://localhost:5001/api/auth/login' 
-        : 'http://localhost:5001/api/auth/register';
+        ? `${API_BASE_URL}/auth/login`
+        : `${API_BASE_URL}/auth/register`;
       
       const payload = {
         email,
-        password, // Backend currently only checks email, but we send this anyway
+        password,
         ...(isLoginMode ? {} : { name: "New User", role: "user" })
       };
 
@@ -34,7 +35,7 @@ export default function LoginPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data = await parseJsonResponse<any>(response);
 
       if (!response.ok) {
         throw new Error(data.message || 'Authentication failed');

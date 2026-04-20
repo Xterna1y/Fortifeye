@@ -2,15 +2,34 @@ import * as authService from "./auth.service.js";
 
 export const login = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, password } = req.body;
 
-    const user = await authService.login(email);
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
-    if (!user) {
+    const result = await authService.login(email, password);
+
+    if (!result.ok) {
+      if (result.code === "USER_NOT_FOUND") {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      if (result.code === "INVALID_PASSWORD") {
+        return res.status(401).json({ message: "Incorrect password" });
+      }
+
+      if (result.code === "PASSWORD_NOT_SET") {
+        return res.status(400).json({
+          message:
+            "This account was created before password authentication was enabled. Please create a new account or reset this user manually.",
+        });
+      }
+
       return res.status(401).json({ message: "User not found" });
     }
 
-    res.json(user);
+    res.json(result.user);
   } catch (error) {
     console.error("Error logging in:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -32,15 +51,20 @@ export const getProfile = async (req, res) => {
 
 export const register = async (req, res) => {
   try {
-    const { email, name, role, identity } = req.body;
+    const { email, password, name, role, identity } = req.body;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
     }
 
+    if (!password || password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters" });
+    }
+
     // You can customize the user fields you want to save
     const userData = {
       email,
+      password,
       name: name || "New User",
       role: role || "user",
       identity: identity || "na"

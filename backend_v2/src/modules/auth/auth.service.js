@@ -1,4 +1,5 @@
 import { db } from "../../config/db.js";
+import { hashPassword, verifyPassword } from "./password.service.js";
 
 const generateSerialId = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -9,17 +10,29 @@ const generateSerialId = () => {
   return result;
 };
 
-export const login = async (email) => {
+export const login = async (email, password) => {
   const usersRef = db.collection("users");
   const snapshot = await usersRef.where("email", "==", email).get();
 
   if (snapshot.empty) {
-    return null;
+    return { ok: false, code: "USER_NOT_FOUND" };
   }
 
-  // Assuming email is unique, returning the first match
   const userDoc = snapshot.docs[0];
-  return { id: userDoc.id, ...userDoc.data() };
+  const userData = userDoc.data();
+
+  if (!userData.passwordHash) {
+    return { ok: false, code: "PASSWORD_NOT_SET" };
+  }
+
+  const isPasswordValid = await verifyPassword(password, userData.passwordHash);
+
+  if (!isPasswordValid) {
+    return { ok: false, code: "INVALID_PASSWORD" };
+  }
+
+  const { passwordHash, ...safeUserData } = userData;
+  return { ok: true, user: { id: userDoc.id, ...safeUserData } };
 };
 
 export const register = async (userData) => {
@@ -45,12 +58,14 @@ export const register = async (userData) => {
   // Add new user
   const newUser = {
     ...userData,
+    passwordHash: await hashPassword(userData.password),
     serialId,
     createdAt: new Date().toISOString(),
   };
 
   const docRef = await usersRef.add(newUser);
-  return { id: docRef.id, ...newUser };
+  const { passwordHash, ...safeUserData } = newUser;
+  return { id: docRef.id, ...safeUserData };
 };
 
 export const getProfile = async (userId) => {
@@ -58,5 +73,7 @@ export const getProfile = async (userId) => {
   if (!userDoc.exists) {
     return null;
   }
-  return { id: userDoc.id, ...userDoc.data() };
+  const userData = userDoc.data();
+  const { passwordHash, ...safeUserData } = userData;
+  return { id: userDoc.id, ...safeUserData };
 };
