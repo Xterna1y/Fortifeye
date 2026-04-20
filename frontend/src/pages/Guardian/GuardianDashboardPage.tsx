@@ -10,10 +10,13 @@ import {
   User,
   Ban
 } from 'lucide-react';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
 import StatCard from '../../components/ui/StatCard';
+import StatusBadge from '../../components/ui/StatusBadge';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
 
 interface ProtectedPerson {
@@ -87,13 +90,12 @@ export default function GuardianDashboardPage() {
           }
           className="mb-6"
           titleAction={
-            <button
-              type="button"
+            <Button
               onClick={() => navigate('/guardian-link')}
-              className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
+              variant="secondary"
             >
               Open Linking Setup
-            </button>
+            </Button>
           }
         >
           <div className="flex flex-col gap-3 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
@@ -106,49 +108,48 @@ export default function GuardianDashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setRole('guardian')}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  currentRole === 'guardian'
-                    ? 'bg-cyan-500/20 text-cyan-200'
-                    : 'bg-slate-700/70 text-slate-300 hover:text-white'
-                }`}
-              >
-                Guardian
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('dependent')}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  currentRole === 'dependent'
-                    ? 'bg-emerald-500/20 text-emerald-200'
-                    : 'bg-slate-700/70 text-slate-300 hover:text-white'
-                }`}
-              >
-                Dependent
-              </button>
+              <StatusBadge tone={currentRole === 'guardian' ? 'info' : 'neutral'}>
+                <button type="button" onClick={() => setRole('guardian')}>
+                  Guardian
+                </button>
+              </StatusBadge>
+              <StatusBadge tone={currentRole === 'dependent' ? 'success' : 'neutral'}>
+                <button type="button" onClick={() => setRole('dependent')}>
+                  Dependent
+                </button>
+              </StatusBadge>
             </div>
           </div>
-          {linkedAccounts.length > 0 && (
+          {linkedAccounts.length > 0 ? (
             <div className="mt-4 space-y-3">
               {linkedAccounts.map((link) => (
                 <div key={link.requestId} className="flex items-center justify-between rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
                   <div>
-                    <p className="font-medium text-white">{link.serial}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-white">{link.serial}</p>
+                      <StatusBadge tone="success">Linked</StatusBadge>
+                    </div>
                     <p className="text-sm text-slate-400">
                       Linked as a {link.role} on {new Date(link.linkedAt).toLocaleDateString()}.
                     </p>
                   </div>
-                  <button
-                    type="button"
+                  <Button
                     onClick={() => removeLink(link.requestId)}
-                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition-all hover:bg-red-500/20"
+                    variant="danger"
+                    className="px-3 py-2 text-xs"
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="mt-4">
+              <EmptyState
+                icon={User}
+                title="No guardian links yet"
+                description="Open the linking setup to choose a role, share your serial ID, and connect this account to another user."
+              />
             </div>
           )}
         </GlassPanel>
