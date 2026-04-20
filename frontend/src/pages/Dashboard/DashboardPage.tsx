@@ -10,7 +10,9 @@ import {
   Bell,
   Activity,
   TrendingUp,
-  Eye
+  Eye,
+  Clock,
+  Link2,
 } from 'lucide-react';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
@@ -24,9 +26,29 @@ interface Alert {
   time: string;
 }
 
+function formatTimestamp(value?: string) {
+  if (!value) {
+    return 'Just now';
+  }
+
+  return new Date(value).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { hasGuardian } = useGuardianLinking();
+  const {
+    currentRole,
+    pendingIncomingRequests,
+    pendingOutgoingRequests,
+    linkedAccounts,
+    acceptRequest,
+    declineRequest,
+  } = useGuardianLinking();
   const [recentAlerts] = useState<Alert[]>([
     { id: 1, type: 'danger', message: 'High risk transaction detected', time: '2 min ago' },
     { id: 2, type: 'warning', message: 'Unusual login attempt blocked', time: '15 min ago' },
@@ -175,49 +197,137 @@ export default function DashboardPage() {
             </GlassPanel>
           </div>
 
-          {/* Side Panel */}
+        {/* Side Panel */}
           <div className="space-y-6">
-            {useGuardianLinking().pendingIncomingRequests.length > 0 && (
+            {currentRole === 'guardian' ? (
               <GlassPanel className="border-amber-500/30 bg-amber-500/10">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
                     <Bell className="h-5 w-5 text-amber-400 animate-bounce" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Link Request</h3>
-                    <p className="text-xs text-slate-400">You have a new connection request</p>
+                    <h3 className="font-semibold text-white">Incoming Requests</h3>
+                    <p className="text-xs text-slate-400">Shortcut to new dependent linking requests</p>
                   </div>
+                </div>
+                <div className="space-y-3">
+                  {pendingIncomingRequests.length === 0 ? (
+                    <p className="text-sm leading-relaxed text-slate-300">
+                      No incoming requests right now. New requests will appear here as a shortcut.
+                    </p>
+                  ) : (
+                    pendingIncomingRequests.slice(0, 2).map((request) => (
+                      <div
+                        key={request.id}
+                        className="rounded-xl border border-amber-500/20 bg-slate-950/30 p-4"
+                      >
+                        <p className="font-medium text-white">
+                          {request.requesterName || request.requesterEmail || request.requesterSerial}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-300">
+                          Wants to be your {request.requesterRole === 'guardian' ? 'guardian' : 'dependent'}.
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Requested {formatTimestamp(request.createdAt)}
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const name = window.prompt(
+                                'Enter a nickname for this person:',
+                                request.requesterName || ''
+                              );
+                              if (name !== null) {
+                                acceptRequest(request.id, name);
+                              }
+                            }}
+                            className="flex-1 rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => declineRequest(request.id)}
+                            className="flex-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => navigate('/guardian-link')}
-                  className="w-full rounded-xl bg-amber-500 py-3 font-medium text-white transition-all hover:bg-amber-600"
+                  className="mt-4 w-full rounded-xl bg-amber-500 py-3 font-medium text-white transition-all hover:bg-amber-600"
                 >
-                  View Requests
+                  Open Linking Setup
                 </button>
               </GlassPanel>
-            )}
-
-            {!hasGuardian && (
+            ) : (
               <GlassPanel className="backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
-                    <Bell className="h-5 w-5 text-amber-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20">
+                    <Clock className="h-5 w-5 text-cyan-300" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">Guardian Mode</h3>
-                    <p className="text-xs text-slate-400">Add a trusted person to review risky activity</p>
+                    <h3 className="font-semibold text-white">Guardian Request Status</h3>
+                    <p className="text-xs text-slate-400">Track the guardian requests you have sent</p>
                   </div>
                 </div>
-                <p className="mb-4 text-sm leading-relaxed text-slate-300">
-                  Placeholder flow: link a guardian to this account so they can help approve or block suspicious actions later.
-                </p>
+                <div className="space-y-3">
+                  {pendingOutgoingRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15">
+                          <Clock className="h-5 w-5 text-cyan-300" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{request.targetSerial}</p>
+                          <p className="mt-1 text-sm text-slate-400">Status: Pending response</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Sent {formatTimestamp(request.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {linkedAccounts.map((link) => (
+                    <div
+                      key={link.requestId}
+                      className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
+                          <Link2 className="h-5 w-5 text-emerald-300" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{link.nickname || link.serial}</p>
+                          <p className="mt-1 text-sm text-emerald-200">Status: Linked successfully</p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            Linked {formatTimestamp(link.linkedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {pendingOutgoingRequests.length === 0 && linkedAccounts.length === 0 && (
+                    <p className="text-sm leading-relaxed text-slate-300">
+                      You have not sent any guardian requests yet.
+                    </p>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => navigate('/guardian-link')}
-                  className="w-full rounded-xl border border-amber-500/30 bg-amber-500/20 py-3 font-medium text-amber-300 transition-all hover:bg-amber-500/30"
+                  className="mt-4 w-full rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-3 font-medium text-cyan-200 transition-all hover:bg-cyan-500/20"
                 >
-                  Configure Guardian
+                  View Linking Details
                 </button>
               </GlassPanel>
             )}
