@@ -1,12 +1,12 @@
 import { API_BASE_URL, parseJsonResponse } from "../config/api";
 
-export async function openSandbox(url: string) {
+export async function openSandbox(url: string, userId?: string) {
   const res = await fetch(`${API_BASE_URL}/sandbox/open`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ url })
+    body: JSON.stringify({ url, user_id: userId })
   });
 
   return parseJsonResponse(res);

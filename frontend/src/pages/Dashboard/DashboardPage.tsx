@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield,
@@ -67,7 +67,6 @@ export default function DashboardPage() {
   const { linkedAccounts, pendingIncomingRequests } = useGuardianLinking();
   const [dashboard, setDashboard] = useState<DashboardData>(defaultDashboard);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
-  const notificationsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -96,42 +95,6 @@ export default function DashboardPage() {
     linkedAccounts.some((account) => account.role === 'guardian') ||
     dashboard.guardian.hasGuardian;
 
-  const notificationItems = useMemo(() => {
-    const requestItems = pendingIncomingRequests.map((request) => ({
-      id: `request-${request.id}`,
-      kind: 'request' as const,
-      type: 'warning' as const,
-      title: request.requesterName || request.requesterEmail || 'Guardian link request',
-      message:
-        request.requesterRole === 'guardian'
-          ? 'Guardian access request pending your review.'
-          : 'Dependent access request pending your review.',
-      createdAt: request.createdAt,
-      actionLabel: 'Review request',
-      actionPath: '/guardian-link',
-    }));
-
-    const alertItems = dashboard.recentAlerts.map((alert) => ({
-      id: `alert-${alert.id}`,
-      kind: 'alert' as const,
-      type: alert.type,
-      title:
-        alert.type === 'danger'
-          ? 'Threat blocked'
-          : alert.type === 'warning'
-            ? 'Action requires attention'
-            : 'Protected activity verified',
-      message: alert.message,
-      createdAt: alert.createdAt,
-      actionLabel: 'Open details',
-      actionPath: '/guardian',
-    }));
-
-    return [...requestItems, ...alertItems].sort(
-      (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-    );
-  }, [dashboard.recentAlerts, pendingIncomingRequests]);
-
   const stats = [
     { label: 'Protected', value: dashboard.stats.protected.toLocaleString(), icon: Shield, color: 'text-cyan-400' },
     { label: 'Blocked', value: dashboard.stats.blocked.toLocaleString(), icon: XCircle, color: 'text-red-400' },
@@ -143,128 +106,12 @@ export default function DashboardPage() {
     navigate('/input');
   };
 
-  const handleNotificationsWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    const container = notificationsRef.current;
-    if (!container) {
-      return;
-    }
-
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-      return;
-    }
-
-    event.preventDefault();
-    container.scrollBy({
-      left: event.deltaY,
-      behavior: 'smooth',
-    });
-  };
-
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Welcome back!"
         description="Your AI-powered financial guardian is always watching."
       />
-
-      <section className="mb-8">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200/70">
-              Notification Bar
-            </h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Scroll with your mouse wheel to move through live requests and alerts.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/guardian')}
-            className="text-sm font-medium text-cyan-400 transition-colors hover:text-cyan-300"
-          >
-            View all
-          </button>
-        </div>
-
-        <div
-          ref={notificationsRef}
-          onWheel={handleNotificationsWheel}
-          className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-700/70"
-        >
-          {notificationItems.length === 0 ? (
-            <GlassPanel className="min-w-full border border-slate-700/50 bg-slate-900/40">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-800/80">
-                  <Bell className="h-5 w-5 text-slate-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-white">No new notifications</p>
-                  <p className="text-sm text-slate-400">
-                    {isLoadingDashboard ? 'Syncing live activity...' : 'Alerts, requests, and reviews will appear here.'}
-                  </p>
-                </div>
-              </div>
-            </GlassPanel>
-          ) : (
-            notificationItems.map((item) => (
-              <GlassPanel
-                key={item.id}
-                className={`min-w-[20rem] flex-1 border ${
-                  item.type === 'danger'
-                    ? 'border-red-500/30 bg-red-500/10'
-                    : item.type === 'warning'
-                      ? 'border-amber-500/30 bg-amber-500/10'
-                      : 'border-emerald-500/30 bg-emerald-500/10'
-                }`}
-              >
-                <div className="flex h-full flex-col gap-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`mt-1 flex h-10 w-10 items-center justify-center rounded-2xl ${
-                          item.type === 'danger'
-                            ? 'bg-red-500/20'
-                            : item.type === 'warning'
-                              ? 'bg-amber-500/20'
-                              : 'bg-emerald-500/20'
-                        }`}
-                      >
-                        {item.type === 'danger' ? (
-                          <XCircle className="h-5 w-5 text-red-400" />
-                        ) : item.type === 'warning' ? (
-                          <AlertTriangle className="h-5 w-5 text-amber-400" />
-                        ) : (
-                          <CheckCircle className="h-5 w-5 text-emerald-400" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-white">{item.title}</p>
-                        <p className="mt-1 text-sm text-slate-300">{item.message}</p>
-                      </div>
-                    </div>
-                    <span className="shrink-0 text-xs text-slate-500">
-                      {formatRelativeTime(item.createdAt)}
-                    </span>
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-between gap-3">
-                    <span className="text-xs uppercase tracking-[0.22em] text-slate-400">
-                      {item.kind === 'request' ? 'Request' : 'Notification'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => navigate(item.actionPath)}
-                      className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-white/10"
-                    >
-                      {item.actionLabel}
-                    </button>
-                  </div>
-                </div>
-              </GlassPanel>
-            ))
-          )}
-        </div>
-      </section>
 
       <div className="grid grid-cols-2 gap-4 mb-8 md:grid-cols-4">
         {stats.map((stat, index) => (

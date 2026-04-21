@@ -1,6 +1,7 @@
 import { v4 as uuid } from "uuid";
 import { db } from "../../config/db.js";
 import { analyzeSandboxRisk } from "../ai/gemini.service.js";
+import { analyzeUrlRisk } from "../ai/gemini.service.js";
 import { createHttpError } from "./sandbox.model.js";
 import { getGuardianForUser } from "../guardian/guardian.service.js";
 import { createAlert } from "../alerts/alert.service.js";
@@ -33,10 +34,13 @@ export const createSession = async ({
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
   const sessionId = `sess_${uuid().slice(0, 8)}`;
+  const initialAssessment = await analyzeUrlRisk({ url });
+  const isHighRisk = initialAssessment.risk_level === "HIGH";
+  const isWarningRisk = initialAssessment.risk_level === "MEDIUM";
 
   const session = {
     session_id: sessionId,
-    status: "starting",
+    status: isHighRisk ? "risk_flagged" : isWarningRisk ? "warning" : "starting",
     submitted_url: url,
     current_url: url,
     page_title: null,
@@ -49,6 +53,7 @@ export const createSession = async ({
     terminated_at: null,
     events: [],
     verdict: null,
+    initial_assessment: initialAssessment,
   };
 
   await getCollection().doc(sessionId).set(session);
@@ -58,6 +63,7 @@ export const createSession = async ({
     status: session.status,
     sandbox_url: session.sandbox_url,
     expires_at: session.expires_at,
+    initial_assessment: initialAssessment,
   };
 };
 

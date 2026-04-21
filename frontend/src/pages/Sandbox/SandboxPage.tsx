@@ -24,16 +24,26 @@ import {
 } from 'lucide-react';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
-import { scanUrl, openSandbox } from '../../services/api';
+import { openSandbox } from '../../services/api';
+
+interface SandboxAssessment {
+  risk_score: number;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
+  recommended_action: 'allow' | 'warn' | 'block';
+  explanation?: string;
+  patterns?: string[];
+}
 
 interface SandboxSession {
   id: string;
   url: string;
-  status: 'loading' | 'active' | 'blocked' | 'error';
+  status: 'loading' | 'active' | 'warning' | 'blocked' | 'error';
   startTime: string;
   blockedElements?: number;
   aiExplanation?: string;
   aiPatterns?: string[];
+  aiRiskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  aiRecommendedAction?: 'allow' | 'warn' | 'block';
   forceOpen?: boolean;
 }
 
@@ -59,6 +69,8 @@ export default function SandboxPage() {
     if (!url.trim()) return;
 
     const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+    const storedUser = localStorage.getItem('fortifeye.user');
+    const currentUser = storedUser ? JSON.parse(storedUser) : null;
 
     const newSession: SandboxSession = {
       id: Date.now().toString(),
@@ -74,21 +86,23 @@ export default function SandboxPage() {
     setShowUrlInput(false);
 
     try {
-      // 1. Initialize a real sandbox session in the backend
-      const sandboxData = await openSandbox(formattedUrl);
-      
-      // 2. Analyze the URL with the Gemini AI
-      const aiResult = await scanUrl(formattedUrl);
-      const isHighRisk = aiResult.risk_level === 'HIGH';
+      const sandboxData = await openSandbox(formattedUrl, currentUser?.id);
+      const aiResult = (sandboxData.initial_assessment || null) as SandboxAssessment | null;
+      const isHighRisk = aiResult?.risk_level === 'HIGH';
+      const isWarningRisk = aiResult?.risk_level === 'MEDIUM';
+      const nextStatus: SandboxSession['status'] = isHighRisk ? 'blocked' : isWarningRisk ? 'warning' : 'active';
 
       setSessions(prev => prev.map(s =>
         s.id === newSession.id
           ? {
             ...s,
             id: sandboxData.session_id || s.id, // Update with real session ID
-            status: isHighRisk ? 'blocked' : 'active',
-            aiExplanation: aiResult.explanation,
-            aiPatterns: aiResult.patterns
+            status: nextStatus,
+            aiExplanation: aiResult?.explanation,
+            aiPatterns: aiResult?.patterns,
+            aiRiskLevel: aiResult?.risk_level,
+            aiRecommendedAction: aiResult?.recommended_action,
+            blockedElements: isHighRisk ? 1 : isWarningRisk ? 1 : 0,
           }
           : s
       ));
@@ -101,8 +115,8 @@ export default function SandboxPage() {
         id: sandboxData.session_id || newSession.id,
         url: formattedUrl,
         timestamp: 'Just now',
-        blockedElements: isHighRisk ? 1 : 0,
-        status: isHighRisk ? 'blocked' : 'safe'
+        blockedElements: isHighRisk ? 1 : isWarningRisk ? 1 : 0,
+        status: isHighRisk ? 'blocked' : isWarningRisk ? 'warning' : 'safe'
       };
       setHistory(prev => [newHistoryItem, ...prev]);
     } catch (error) {
@@ -129,6 +143,8 @@ export default function SandboxPage() {
         return <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />;
       case 'active':
         return <CheckCircle className="w-4 h-4 text-emerald-400" />;
+      case 'warning':
+        return <AlertTriangle className="w-4 h-4 text-amber-400" />;
       case 'blocked':
         return <XCircle className="w-4 h-4 text-red-400" />;
       case 'error':
@@ -182,6 +198,13 @@ export default function SandboxPage() {
       return {
         className: 'bg-emerald-500/20 text-emerald-400',
         label: 'Isolated & Secure',
+      };
+    }
+
+    if (session.status === 'warning') {
+      return {
+        className: 'bg-amber-500/20 text-amber-300',
+        label: 'Suspicious Link',
       };
     }
 
@@ -506,7 +529,7 @@ export default function SandboxPage() {
                     <p className="text-slate-400">Initializing secure sandbox...</p>
                     <p className="text-slate-500 text-sm mt-2">Running in isolated environment</p>
                   </div>
-                ) : currentSession.status === 'active' || (currentSession.status === 'blocked' && currentSession.forceOpen) ? (
+                ) : currentSession.status === 'active' || currentSession.status === 'warning' || (currentSession.status === 'blocked' && currentSession.forceOpen) ? (
                   <div className="h-full flex flex-col relative">
                     <div className="bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-red-500" />
@@ -522,6 +545,27 @@ export default function SandboxPage() {
                           HIGH RISK SCAM DETECTED
                         </div>
                         <p className="text-sm max-w-3xl">{currentSession.aiExplanation}</p>
+                      </div>
+                    )}
+
+                    {currentSession.status === 'warning' && (
+                      <div className="bg-amber-500 text-slate-950 px-4 py-3 shadow-lg z-10 flex flex-col items-center text-center">
+                        <div className="flex items-center gap-2 font-bold text-lg mb-1">
+                          <AlertTriangle className="w-5 h-5" />
+                          SUSPICIOUS LINK WARNING
+                        </div>
+                        <p className="text-sm max-w-3xl">
+                          {currentSession.aiExplanation || 'This link matched suspicious signals or prior risky context. Continue carefully inside the sandbox.'}
+                        </p>
+                        {currentSession.aiPatterns && currentSession.aiPatterns.length > 0 && (
+                          <div className="mt-2 flex flex-wrap justify-center gap-2">
+                            {currentSession.aiPatterns.map(pattern => (
+                              <span key={pattern} className="px-2 py-1 bg-slate-950/15 text-slate-950 text-xs rounded-lg">
+                                {pattern}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
