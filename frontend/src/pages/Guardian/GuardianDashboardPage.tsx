@@ -4,9 +4,8 @@ import {
   AlertTriangle,
   Ban,
   CheckCircle,
-  DollarSign,
   Eye,
-  Lock,
+  Bell,
   Shield,
   User,
 } from 'lucide-react';
@@ -201,9 +200,6 @@ export default function GuardianDashboardPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => handleEditNickname(link.requestId, link.nickname, link.name)} variant="secondary" className="px-3 py-2 text-xs">
-                    Edit nickname
-                  </Button>
                   <Button onClick={() => removeLink(link.requestId)} variant="danger" className="px-3 py-2 text-xs">
                     Remove
                   </Button>
@@ -256,9 +252,6 @@ export default function GuardianDashboardPage() {
                       <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400">
                         {dashboard.riskOverview.level} Protection
                       </span>
-                      <Button onClick={() => handleEditNickname(person.requestId, person.nickname, person.name)} variant="secondary" className="px-3 py-2 text-xs">
-                        Rename
-                      </Button>
                     </div>
                   </div>
                 ))
@@ -344,48 +337,57 @@ export default function GuardianDashboardPage() {
 
       {activeTab === 'settings' && (
         <div className="space-y-6">
-          <GlassPanel title="Guardian Settings">
+          <GlassPanel title="Guardian Notifications">
             <div className="space-y-4">
               <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
-                  <DollarSign className="h-5 w-5 text-cyan-400" />
+                  <Bell className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="font-medium text-white">Transaction Alerts</p>
-                    <p className="text-sm text-slate-400">Live alerts currently tracked by the backend.</p>
+                    <p className="font-medium text-white">Pending Notifications</p>
+                    <p className="text-sm text-slate-400">These are the live guardian notifications waiting for review.</p>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-white">{alerts.length}</span>
+                <span className="text-sm font-semibold text-amber-400">{transactionRequests.length}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
                   <Eye className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="font-medium text-white">View Transaction History</p>
-                    <p className="text-sm text-slate-400">Overview pages now reflect live risk and alert activity.</p>
+                    <p className="font-medium text-white">Reviewed Notifications</p>
+                    <p className="text-sm text-slate-400">Approved and blocked actions stay synchronized with the notifications list.</p>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-emerald-400">Enabled</span>
+                <span className="text-sm font-semibold text-emerald-400">{resolvedRequests.length}</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Block High-Risk Transactions</p>
-                    <p className="text-sm text-slate-400">Use the requests tab to approve or block pending guardian reviews.</p>
+            </div>
+          </GlassPanel>
+
+          <GlassPanel title="Protected People Settings">
+            <div className="space-y-4">
+              {linkedAccounts.length === 0 ? (
+                <EmptyState
+                  icon={User}
+                  title="No linked people yet"
+                  description="Guardian nicknames and linked-account management will appear here after a dependent is connected."
+                />
+              ) : (
+                linkedAccounts.map((person) => (
+                  <div key={person.requestId} className="flex flex-col gap-3 rounded-xl bg-slate-900/50 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-medium text-white">{person.nickname || person.name || person.serial}</p>
+                      <p className="text-sm text-slate-400">{person.email || person.serial}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleEditNickname(person.requestId, person.nickname, person.name)} variant="secondary" className="px-3 py-2 text-xs">
+                        Edit nickname
+                      </Button>
+                      <Button onClick={() => removeLink(person.requestId)} variant="danger" className="px-3 py-2 text-xs">
+                        Remove
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <span className="text-sm font-semibold text-amber-400">{transactionRequests.length} pending</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Lock className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Emergency Lock</p>
-                    <p className="text-sm text-slate-400">High-risk sandbox alerts can still be blocked immediately.</p>
-                  </div>
-                </div>
-                <span className="text-sm font-semibold text-red-400">{dashboard.summary.threatsBlocked} blocked today</span>
-              </div>
+                ))
+              )}
             </div>
           </GlassPanel>
         </div>

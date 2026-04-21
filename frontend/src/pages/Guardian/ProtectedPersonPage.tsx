@@ -3,15 +3,12 @@ import {
   Bell,
   CheckCircle,
   Clock,
-  DollarSign,
   Eye,
   EyeOff,
-  Lock,
-  MessageSquare,
   Shield,
-  User,
   XCircle,
 } from 'lucide-react';
+import Button from '../../components/ui/Button';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
@@ -43,7 +40,7 @@ export default function ProtectedPersonPage() {
   const [showBalance, setShowBalance] = useState(false);
   const [activeTab, setActiveTab] = useState<'transactions' | 'alerts' | 'settings'>('transactions');
   const [dashboard, setDashboard] = useState<DashboardData>(defaultDashboard);
-  const { guardian, linkedAccounts } = useGuardianLinking();
+  const { guardian, linkedAccounts, updateLinkNickname } = useGuardianLinking();
 
   useEffect(() => {
     const load = async () => {
@@ -82,6 +79,19 @@ export default function ProtectedPersonPage() {
 
   const guardianName = guardian?.nickname || guardian?.name || 'Guardian not linked';
   const balance = dashboard.riskOverview.safeScore * 100;
+
+  const handleEditGuardianNickname = async () => {
+    if (!guardian) {
+      return;
+    }
+
+    const nickname = window.prompt('Update the nickname for your guardian:', guardian.nickname || guardian.name || '');
+    if (nickname === null) {
+      return;
+    }
+
+    await updateLinkNickname(guardian.requestId, nickname);
+  };
 
   const tabs: Array<{ key: 'transactions' | 'alerts' | 'settings'; label: string }> = [
     { key: 'transactions', label: 'My Transactions' },
@@ -124,26 +134,6 @@ export default function ProtectedPersonPage() {
           <p className="text-sm text-white/70">Safe score mirrored from live dashboard data</p>
         </div>
       </div>
-
-      <GlassPanel padding="sm" className="mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700">
-              <User className="h-5 w-5 text-slate-400" />
-            </div>
-            <div>
-              <p className="font-medium text-white">Your Guardian: {guardianName}</p>
-              <p className="text-sm text-slate-400">
-                {guardian ? 'Monitoring your account for suspicious activity' : 'No guardian is currently linked'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-emerald-400" />
-            <span className="text-sm text-emerald-400">{guardian ? 'Active Protection' : 'Inactive'}</span>
-          </div>
-        </div>
-      </GlassPanel>
 
       <SegmentedTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
@@ -212,97 +202,89 @@ export default function ProtectedPersonPage() {
 
       {activeTab === 'alerts' && (
         <div className="space-y-4">
-          {dashboard.recentAlerts.map((alert) => (
-            <GlassPanel
-              key={alert.id}
-              padding="sm"
-              className={
-                alert.type === 'warning'
-                  ? 'border-amber-500/20'
-                  : alert.type === 'danger'
-                    ? 'border-red-500/20'
-                    : 'border-emerald-500/20'
-              }
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                    alert.type === 'warning'
-                      ? 'bg-amber-500/20'
-                      : alert.type === 'danger'
-                        ? 'bg-red-500/20'
-                        : 'bg-emerald-500/20'
-                  }`}
-                >
-                  {alert.type === 'warning' ? (
-                    <Bell className="h-5 w-5 text-amber-400" />
-                  ) : alert.type === 'danger' ? (
-                    <XCircle className="h-5 w-5 text-red-400" />
-                  ) : (
-                    <CheckCircle className="h-5 w-5 text-emerald-400" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-white">{alert.message}</p>
-                  <p className="mt-1 text-sm text-slate-400">{formatRelativeTime(alert.createdAt)}</p>
-                </div>
-              </div>
-            </GlassPanel>
-          ))}
+          <GlassPanel title="Recent Notifications">
+            <div className="space-y-3">
+              {dashboard.recentAlerts.length === 0 ? (
+                <p className="py-8 text-center text-slate-400">No guardian notifications yet.</p>
+              ) : (
+                dashboard.recentAlerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between rounded-lg bg-slate-900/50 p-3">
+                    <div className="flex items-center gap-3">
+                      {alert.type === 'danger' ? (
+                        <XCircle className="h-5 w-5 text-red-400" />
+                      ) : alert.type === 'warning' ? (
+                        <Bell className="h-5 w-5 text-amber-400" />
+                      ) : (
+                        <CheckCircle className="h-5 w-5 text-emerald-400" />
+                      )}
+                      <div>
+                        <p className="text-sm text-white">{alert.message}</p>
+                        <p className="text-xs text-slate-500">{formatRelativeTime(alert.createdAt)}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-sm font-medium ${
+                        alert.type === 'danger'
+                          ? 'text-red-400'
+                          : alert.type === 'warning'
+                            ? 'text-amber-400'
+                            : 'text-emerald-400'
+                      }`}
+                    >
+                      {alert.type === 'danger' ? 'Blocked' : alert.type === 'warning' ? 'Warning' : 'Approved'}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </GlassPanel>
         </div>
       )}
 
       {activeTab === 'settings' && (
         <div className="space-y-6">
-          <GlassPanel title="Your Privacy Controls">
+          <GlassPanel title="Guardian Settings">
             <div className="space-y-4">
               <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
                   <Eye className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="font-medium text-white">Share Transaction History</p>
-                    <p className="text-sm text-slate-400">Allow guardian to view your recent protected activity.</p>
+                    <p className="font-medium text-white">Guardian Status</p>
+                    <p className="text-sm text-slate-400">
+                      {guardian ? `${guardianName} is currently linked and monitoring this account.` : 'No guardian is currently linked to this account.'}
+                    </p>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-emerald-400">Enabled</span>
+                <span className={`text-sm font-semibold ${guardian ? 'text-emerald-400' : 'text-slate-400'}`}>
+                  {guardian ? 'Active' : 'Inactive'}
+                </span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
                   <Bell className="h-5 w-5 text-cyan-400" />
                   <div>
-                    <p className="font-medium text-white">Transaction Notifications</p>
-                    <p className="text-sm text-slate-400">Receive alerts when your guardian reviews flagged items.</p>
+                    <p className="font-medium text-white">Notifications</p>
+                    <p className="text-sm text-slate-400">Guardian review results and recent alerts stay synchronized with the notifications tab.</p>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-emerald-400">{dashboard.summary.threatsBlocked} today</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Large Transaction Approval</p>
-                    <p className="text-sm text-slate-400">Guardian review is reflected in the transaction status cards.</p>
-                  </div>
-                </div>
-                <span className="text-sm font-semibold text-amber-400">
-                  {transactions.filter((item) => item.status === 'pending').length} pending
-                </span>
+                <span className="text-sm font-semibold text-emerald-400">{dashboard.recentAlerts.length}</span>
               </div>
             </div>
           </GlassPanel>
 
-          <GlassPanel title="Contact Your Guardian">
-            <div className="space-y-4">
-              <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900/50 p-4 transition-colors hover:bg-slate-700/50">
-                <MessageSquare className="h-5 w-5 text-cyan-400" />
-                <span className="text-white">Send Message to Guardian</span>
-              </button>
-              <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900/50 p-4 transition-colors hover:bg-slate-700/50">
-                <Lock className="h-5 w-5 text-amber-400" />
-                <span className="text-white">Request to Increase Spending Limit</span>
-              </button>
-            </div>
-          </GlassPanel>
+          {guardian && (
+            <GlassPanel title="Guardian Profile">
+              <div className="flex flex-col gap-4 rounded-xl bg-slate-900/50 p-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-medium text-white">{guardianName}</p>
+                  <p className="text-sm text-slate-400">{guardian.email || guardian.serial}</p>
+                </div>
+                <Button onClick={handleEditGuardianNickname} variant="secondary" className="px-3 py-2 text-xs">
+                  Edit nickname
+                </Button>
+              </div>
+            </GlassPanel>
+          )}
         </div>
       )}
     </div>
