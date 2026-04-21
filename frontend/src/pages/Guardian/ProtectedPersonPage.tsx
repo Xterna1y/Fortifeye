@@ -4,9 +4,7 @@ import {
   Bell,
   CheckCircle,
   Clock,
-  Eye,
   Link2,
-  Lock,
   Mail,
   MessageSquare,
   PencilLine,
@@ -95,7 +93,7 @@ export default function ProtectedPersonPage() {
   const tabs: Array<{ key: 'overview' | 'transactions' | 'settings'; label: string }> = [
     { key: 'overview', label: 'Overview' },
     { key: 'transactions', label: 'Transaction Requests' },
-    { key: 'settings', label: 'Privacy Settings' },
+    { key: 'settings', label: 'Settings' },
   ];
 
   useEffect(() => {
@@ -307,46 +305,6 @@ export default function ProtectedPersonPage() {
         </div>
       </div>
 
-      <GlassPanel padding="sm" className="mb-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700">
-              <User className="h-5 w-5 text-slate-400" />
-            </div>
-            <div>
-              <p className="font-medium text-white">
-                {primaryGuardian ? `Your Guardian: ${primaryGuardian.name}` : 'No guardian linked yet'}
-              </p>
-              <p className="text-sm text-slate-400">
-                {primaryGuardian
-                  ? primaryGuardian.email || `Serial ID: ${primaryGuardian.serial}`
-                  : pendingOutgoingRequests.length > 0
-                    ? 'A guardian link request is still waiting for approval.'
-                    : 'Send a link request to turn on live guardian protection.'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {primaryGuardian ? (
-              <>
-                <CheckCircle className="h-5 w-5 text-emerald-400" />
-                <span className="text-sm text-emerald-400">Active Protection</span>
-              </>
-            ) : pendingOutgoingRequests.length > 0 ? (
-              <>
-                <Clock className="h-5 w-5 text-amber-400" />
-                <span className="text-sm text-amber-400">Awaiting Response</span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-5 w-5 text-slate-400" />
-                <span className="text-sm text-slate-400">Not Linked</span>
-              </>
-            )}
-          </div>
-        </div>
-      </GlassPanel>
-
       <SegmentedTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
       {activeTab === 'overview' && (
@@ -383,8 +341,8 @@ export default function ProtectedPersonPage() {
           </div>
 
           <GlassPanel
-            title="Your Guardian"
-            description="Live guardian records synced from the same database used by the linking flow."
+            title="Guardian Details"
+            description="Current guardian connection synced from the same database used by the linking flow."
           >
             <div className="space-y-4">
               {linkedGuardians.length === 0 ? (
@@ -393,8 +351,6 @@ export default function ProtectedPersonPage() {
                 </div>
               ) : (
                 linkedGuardians.map((guardian) => {
-                  const isEditing = editingGuardianId === guardian.id;
-
                   return (
                     <div key={guardian.id} className="rounded-xl bg-slate-900/50 p-4">
                       <div className="flex items-center justify-between gap-4">
@@ -421,57 +377,10 @@ export default function ProtectedPersonPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
-                            Active
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => startEditingNickname(guardian.id, guardian.name)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-200 transition-all hover:bg-cyan-500/20"
-                          >
-                            <PencilLine className="h-3.5 w-3.5" />
-                            Edit Nickname
-                          </button>
-                        </div>
+                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
+                          Active
+                        </span>
                       </div>
-
-                      {isEditing && (
-                        <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/35 p-4">
-                          <label className="mb-2 block text-sm font-medium text-slate-300">
-                            Guardian Nickname
-                          </label>
-                          <div className="flex flex-col gap-3 sm:flex-row">
-                            <input
-                              type="text"
-                              value={nicknameInput}
-                              onChange={(event) => setNicknameInput(event.target.value)}
-                              className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
-                              placeholder="Enter a nickname"
-                            />
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleSaveNickname(guardian.id)}
-                                className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingGuardianId(null);
-                                  setNicknameInput('');
-                                  setNicknameFeedback(null);
-                                }}
-                                className="rounded-xl border border-slate-700/70 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-slate-600 hover:text-white"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })
@@ -746,64 +655,69 @@ export default function ProtectedPersonPage() {
 
       {activeTab === 'settings' && (
         <div className="space-y-6">
-          <GlassPanel
-            title="Privacy Settings"
-            description="These remain placeholder controls, but the transaction request flow above is fully live."
-          >
+          <GlassPanel title="Settings">
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Eye className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Share Transaction History</p>
-                    <p className="text-sm text-slate-400">Allow guardian to view your transaction history</p>
+              <div className="rounded-xl bg-slate-900/50 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <PencilLine className="h-5 w-5 text-cyan-400" />
+                    <p className="font-medium text-white">Guardian Nickname</p>
                   </div>
+                  {primaryGuardian && (
+                    <button
+                      type="button"
+                      onClick={() => startEditingNickname(primaryGuardian.id, primaryGuardian.name)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-200 transition-all hover:bg-cyan-500/20"
+                    >
+                      <PencilLine className="h-3.5 w-3.5" />
+                      Edit Nickname
+                    </button>
+                  )}
                 </div>
-                <button className="relative h-6 w-12 rounded-full bg-cyan-500 opacity-60">
-                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
-                </button>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Bell className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Transaction Notifications</p>
-                    <p className="text-sm text-slate-400">Get notified when your guardian reviews requests</p>
-                  </div>
-                </div>
-                <button className="relative h-6 w-12 rounded-full bg-cyan-500 opacity-60">
-                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
-                </button>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Lock className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Large Transaction Approval</p>
-                    <p className="text-sm text-slate-400">Require guardian approval before large transfers</p>
-                  </div>
-                </div>
-                <button className="relative h-6 w-12 rounded-full bg-cyan-500 opacity-60">
-                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
-                </button>
-              </div>
-            </div>
-          </GlassPanel>
 
-          <GlassPanel title="Guardian Contact">
-            <div className="space-y-4">
-              <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900/50 p-4 transition-colors hover:bg-slate-700/50">
-                <MessageSquare className="h-5 w-5 text-cyan-400" />
-                <span className="text-white">Message Guardian</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/guardian-link')}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900/50 p-4 transition-colors hover:bg-slate-700/50"
-              >
-                <Link2 className="h-5 w-5 text-amber-400" />
-                <span className="text-white">Manage Guardian Linking</span>
-              </button>
+                {primaryGuardian && editingGuardianId === primaryGuardian.id && (
+                  <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/35 p-4">
+                    <label className="mb-2 block text-sm font-medium text-slate-300">
+                      Guardian Nickname
+                    </label>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <input
+                        type="text"
+                        value={nicknameInput}
+                        onChange={(event) => setNicknameInput(event.target.value)}
+                        className="w-full rounded-xl border border-slate-700/70 bg-slate-950/50 px-4 py-3 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+                        placeholder="Enter a nickname"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveNickname(primaryGuardian.id)}
+                          className="rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingGuardianId(null);
+                            setNicknameInput('');
+                            setNicknameFeedback(null);
+                          }}
+                          className="rounded-xl border border-slate-700/70 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-slate-600 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {nicknameFeedback && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                  {nicknameFeedback}
+                </div>
+              )}
             </div>
           </GlassPanel>
         </div>
