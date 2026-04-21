@@ -1,6 +1,6 @@
 # Fortifeye
 
-Fortifeye is a web-based platform built for the hackathon project. It provides separate user flows for **guardians** and **dependents**, with a frontend built for user interaction and a backend API for application logic and data handling.
+Fortifeye is a web-based platform built for the hackathon project. It provides separate user flows for **guardians** and **dependents**, with a frontend built for user interaction and a backend API for application logic and data handling. The platform also includes a **sandbox feature**, where links can be opened in an isolated environment to help prevent data leakage and reduce the risk of accidental malware installation.
 
 ## Tech Stack
 
@@ -78,6 +78,16 @@ npm run dev
 
 * **Email:** [guardian@123.com](mailto:guardian@123.com)
 * **Password:** 12345678
+
+## Key Features
+
+* **Guardian and dependent roles** with separate user flows
+* **Transaction approval workflow** to support safer decision-making before sensitive transfers or actions are completed
+* **Scam text and audio analysis** to examine suspicious messages and speech content
+* **Risk scoring system** that evaluates potential threat levels based on detected scam indicators
+* **Guidance and next-step advice** to help users decide how to respond safely after a scam check
+* **Sandbox link isolation** to open suspicious or unknown links in a contained environment for safer browsing, helping prevent data leakage and accidental malware installation
+* **AI + RAG-powered detection** where links, text, and audio are not only analysed by AI, but are also checked against retrieved reference data to identify suspicious websites and similar scam text patterns
 
 ## Notes
 
