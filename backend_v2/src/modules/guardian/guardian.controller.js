@@ -136,6 +136,36 @@ export const getLinks = async (req, res) => {
   }
 };
 
+export const getGuardianSettings = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const settings = await guardianService.getGuardianSettings(userId);
+    res.json(settings);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const updateGuardianSettings = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const settings = await guardianService.updateGuardianSettings(userId, req.body ?? {});
+    res.json(settings);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 export const removeLink = async (req, res) => {
   try {
     const { linkId } = req.params;

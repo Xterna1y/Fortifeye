@@ -21,4 +21,7 @@ export interface TransactionRequestRecord {
   dependentEmail?: string | null;
   dependentSerial?: string | null;
   linkNickname?: string | null;
+  guardianSettings?: {
+    emergencyLock: boolean;
+  };
 }

@@ -67,6 +67,7 @@ export const guardianLinkingService = {
           requesterEmail: link.otherUserEmail,
           targetSerial: user.serialId,
           nickname: link.nickname,
+          guardianSettings: link.guardianSettings,
           status: 'accepted' as const,
           createdAt: link.linkedAt,
           respondedAt: link.linkedAt,

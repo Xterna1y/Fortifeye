@@ -4,8 +4,6 @@ import {
   AlertTriangle,
   Ban,
   CheckCircle,
-  DollarSign,
-  Eye,
   Link2,
   Lock,
   Mail,
@@ -16,6 +14,7 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
 import StatCard from '../../components/ui/StatCard';
+import useGuardianSettings from '../../hooks/useGuardianSettings';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
 import useTransactionRequests from '../../hooks/useTransactionRequests';
 
@@ -48,17 +47,25 @@ export default function GuardianDashboardPage() {
     'protected' | 'pending' | 'approved' | 'blocked'
   >('protected');
   const [rejectionDrafts, setRejectionDrafts] = useState<Record<string, string>>({});
+  const [settingsFeedback, setSettingsFeedback] = useState<string | null>(null);
   const overviewHistoryRef = useRef<HTMLDivElement | null>(null);
   const {
     linkedAccounts,
     removeLink,
   } = useGuardianLinking();
   const {
+    settings: guardianSettings,
+    isLoading: isSettingsLoading,
+    isSaving: isSettingsSaving,
+    updateSettings,
+  } = useGuardianSettings();
+  const {
     requests: transactionRequests,
     pendingRequests,
     approvedRequests,
     rejectedRequests,
     isLoading: isTransactionsLoading,
+    refresh: refreshTransactionRequests,
     approveRequest,
     rejectRequest,
   } = useTransactionRequests();
@@ -95,9 +102,28 @@ export default function GuardianDashboardPage() {
     (request) => request.status !== 'pending',
   );
 
+  const isGuardianSettingsBusy = isSettingsLoading || isSettingsSaving;
+
   const handleRejectRequest = async (requestId: string) => {
     await rejectRequest(requestId, rejectionDrafts[requestId] || undefined);
     setRejectionDrafts((current) => ({ ...current, [requestId]: '' }));
+  };
+
+  const handleGuardianSettingToggle = async (
+    key: 'emergencyLock',
+  ) => {
+    setSettingsFeedback(null);
+
+    try {
+      const nextValue = !guardianSettings[key];
+      await updateSettings({ [key]: nextValue });
+      await refreshTransactionRequests();
+      setSettingsFeedback(`Emergency lock ${nextValue ? 'enabled' : 'disabled'} successfully.`);
+    } catch (error) {
+      setSettingsFeedback(
+        error instanceof Error ? error.message : 'Unable to update guardian settings.',
+      );
+    }
   };
 
   const handleOverviewFilterChange = (
@@ -615,54 +641,34 @@ export default function GuardianDashboardPage() {
         <div className="space-y-6">
           <GlassPanel title="Guardian Settings">
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Transaction Alerts</p>
-                    <p className="text-sm text-slate-400">Get notified for new dependent requests</p>
-                  </div>
+              {settingsFeedback && (
+                <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-200">
+                  {settingsFeedback}
                 </div>
-                <input
-                  type="number"
-                  defaultValue={100}
-                  className="w-24 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-right text-white"
-                />
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Eye className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">View Transaction History</p>
-                    <p className="text-sm text-slate-400">Access full transaction history of protected persons</p>
-                  </div>
-                </div>
-                <button className="relative h-6 w-12 rounded-full bg-cyan-500">
-                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
-                </button>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Block High-Risk Transactions</p>
-                    <p className="text-sm text-slate-400">Automatically block transactions flagged as high risk</p>
-                  </div>
-                </div>
-                <button className="relative h-6 w-12 rounded-full bg-cyan-500">
-                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
-                </button>
-              </div>
+              )}
               <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
                 <div className="flex items-center gap-3">
                   <Lock className="h-5 w-5 text-cyan-400" />
                   <div>
                     <p className="font-medium text-white">Emergency Lock</p>
-                    <p className="text-sm text-slate-400">Immediately block all transactions for a protected person</p>
+                    <p className="text-sm text-slate-400">
+                      Immediately block all new transaction requests from your dependents
+                    </p>
                   </div>
                 </div>
-                <button className="rounded-lg bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600">
-                  Enable
+                <button
+                  type="button"
+                  disabled={isGuardianSettingsBusy}
+                  onClick={() => handleGuardianSettingToggle('emergencyLock')}
+                  className={`relative h-6 w-12 rounded-full transition-colors ${
+                    guardianSettings.emergencyLock ? 'bg-red-500' : 'bg-slate-700'
+                  } ${isGuardianSettingsBusy ? 'cursor-not-allowed opacity-60' : ''}`}
+                >
+                  <span
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${
+                      guardianSettings.emergencyLock ? 'right-1' : 'left-1'
+                    }`}
+                  />
                 </button>
               </div>
             </div>

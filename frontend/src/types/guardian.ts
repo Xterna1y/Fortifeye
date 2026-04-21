@@ -1,5 +1,9 @@
 export type GuardianRole = 'guardian' | 'dependent';
 
+export interface GuardianSettings {
+  emergencyLock: boolean;
+}
+
 export interface GuardianLinkRequest {
   id: string;
   requesterRole: GuardianRole;
@@ -9,6 +13,7 @@ export interface GuardianLinkRequest {
   targetSerial: string;
   status: 'pending' | 'accepted' | 'rejected';
   nickname?: string;
+  guardianSettings?: GuardianSettings;
   createdAt: string;
   respondedAt?: string;
 }
@@ -31,5 +36,6 @@ export interface LinkedGuardianAccount {
   nickname?: string;
   name?: string;
   email?: string;
+  guardianSettings?: GuardianSettings;
   linkedAt: string;
 }

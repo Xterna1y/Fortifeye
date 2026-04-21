@@ -4,8 +4,10 @@ import {
   sendRequest, 
   getRequests, 
   getRequestHistory,
+  getGuardianSettings,
   createTransactionRequest,
   getTransactionRequests,
+  updateGuardianSettings,
   updateTransactionRequest,
   respondToRequest,
   getLinks,
@@ -19,6 +21,8 @@ router.get("/dependents/:guardianId", getDependents);
 router.post("/request", sendRequest);
 router.get("/requests", getRequests);
 router.get("/requests/history", getRequestHistory);
+router.get("/settings", getGuardianSettings);
+router.patch("/settings/:userId", updateGuardianSettings);
 router.post("/transaction-requests", createTransactionRequest);
 router.get("/transaction-requests", getTransactionRequests);
 router.patch("/transaction-requests/:requestId", updateTransactionRequest);

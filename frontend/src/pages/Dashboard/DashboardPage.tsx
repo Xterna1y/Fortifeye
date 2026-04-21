@@ -1,18 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Shield,
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  MessageSquare, 
-  Mic, 
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  Mic,
   Bell,
   Activity,
   TrendingUp,
   Eye,
-  Clock,
-  Link2,
 } from 'lucide-react';
 import GlassPanel from '../../components/ui/GlassPanel';
 import PageHeader from '../../components/ui/PageHeader';
@@ -27,6 +25,17 @@ interface Alert {
   time: string;
 }
 
+interface DashboardNotification {
+  id: string;
+  type: 'link' | 'transaction';
+  title: string;
+  description: string;
+  timestamp: string;
+  actionLabel: string;
+  actionPath: string;
+  tone: 'cyan' | 'emerald' | 'amber' | 'red';
+}
+
 function formatTimestamp(value?: string) {
   if (!value) {
     return 'Just now';
@@ -38,6 +47,104 @@ function formatTimestamp(value?: string) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function sortNotifications(notifications: DashboardNotification[]) {
+  return [...notifications].sort(
+    (first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
+  );
+}
+
+function NotificationPanel({
+  emptyState,
+  notifications,
+  onNavigate,
+}: {
+  emptyState: string;
+  notifications: DashboardNotification[];
+  onNavigate: (path: string) => void;
+}) {
+  return (
+    <GlassPanel className="backdrop-blur-sm">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20">
+          <Bell className="h-5 w-5 text-cyan-300" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-white">Notifications</h3>
+          <p className="text-xs text-slate-400">
+            Latest linking and transaction activity appears here
+          </p>
+        </div>
+      </div>
+
+      <div className="-mr-2 max-h-[28rem] space-y-3 overflow-y-auto pr-3">
+        {notifications.length === 0 ? (
+          <p className="text-sm leading-relaxed text-slate-300">{emptyState}</p>
+        ) : (
+          notifications.map((notification) => {
+            const containerClassName =
+              notification.tone === 'emerald'
+                ? 'border-emerald-500/20 bg-emerald-500/10 hover:border-emerald-400/30 hover:bg-emerald-500/15'
+                : notification.tone === 'red'
+                  ? 'border-red-500/20 bg-red-500/10 hover:border-red-400/30 hover:bg-red-500/15'
+                  : notification.tone === 'amber'
+                    ? 'border-amber-500/20 bg-slate-900/50 hover:border-amber-400/30 hover:bg-slate-800/60'
+                    : 'border-cyan-500/20 bg-slate-950/30 hover:border-cyan-400/40 hover:bg-slate-900/50';
+
+            const badgeClassName =
+              notification.tone === 'emerald'
+                ? 'bg-emerald-500/15 text-emerald-300'
+                : notification.tone === 'red'
+                  ? 'bg-red-500/15 text-red-300'
+                  : notification.tone === 'amber'
+                    ? 'bg-amber-500/15 text-amber-300'
+                    : 'bg-cyan-500/15 text-cyan-300';
+
+            const actionClassName =
+              notification.tone === 'emerald'
+                ? 'text-emerald-300'
+                : notification.tone === 'red'
+                  ? 'text-red-300'
+                  : notification.tone === 'amber'
+                    ? 'text-amber-300'
+                    : 'text-cyan-300';
+
+            return (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => onNavigate(notification.actionPath)}
+                className={`w-full rounded-xl border p-4 text-left transition-all ${containerClassName}`}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${badgeClassName}`}
+                  >
+                    {notification.type === 'transaction' ? 'Transaction' : 'Linking'}
+                  </span>
+                </div>
+                <p className="font-medium text-white">{notification.title}</p>
+                <p className="mt-1 text-sm text-slate-300">{notification.description}</p>
+                <p className="mt-1 text-xs text-slate-500">{formatTimestamp(notification.timestamp)}</p>
+                <p className={`mt-3 text-xs font-medium uppercase tracking-[0.18em] ${actionClassName}`}>
+                  {notification.actionLabel}
+                </p>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </GlassPanel>
+  );
 }
 
 export default function DashboardPage() {
@@ -68,7 +175,7 @@ export default function DashboardPage() {
 
   const guardianNotifications = useMemo(
     () =>
-      [
+      sortNotifications([
         ...pendingIncomingRequests.map((request) => ({
           id: `link-${request.id}`,
           type: 'link' as const,
@@ -87,28 +194,19 @@ export default function DashboardPage() {
             id: `transaction-${request.id}`,
             type: 'transaction' as const,
             title: request.linkNickname || request.dependentName || request.dependentSerial,
-            description: `${
-              new Intl.NumberFormat(undefined, {
-                style: 'currency',
-                currency: 'USD',
-                maximumFractionDigits: 2,
-              }).format(request.amount)
-            } for ${request.title}. ${request.reason}`,
+            description: `${formatCurrency(request.amount)} for ${request.title}. ${request.reason}`,
             timestamp: request.createdAt,
             actionLabel: 'Open Guardian Page',
             actionPath: '/guardian?tab=requests',
-            tone: 'emerald' as const,
+            tone: 'amber' as const,
           })),
-      ].sort(
-        (first, second) =>
-          new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
-      ),
+      ]),
     [pendingIncomingRequests, transactionRequests],
   );
 
   const dependentNotifications = useMemo(
     () =>
-      [
+      sortNotifications([
         ...pendingOutgoingRequests.map((request) => ({
           id: `outgoing-link-${request.id}`,
           type: 'link' as const,
@@ -133,13 +231,7 @@ export default function DashboardPage() {
           id: `request-${request.id}`,
           type: 'transaction' as const,
           title: request.title,
-          description: `${
-            new Intl.NumberFormat(undefined, {
-              style: 'currency',
-              currency: 'USD',
-              maximumFractionDigits: 2,
-            }).format(request.amount)
-          } • ${
+          description: `${formatCurrency(request.amount)} • ${
             request.status === 'approved'
               ? 'Approved'
               : request.status === 'rejected'
@@ -156,10 +248,7 @@ export default function DashboardPage() {
                 ? ('red' as const)
                 : ('amber' as const),
         })),
-      ].sort(
-        (first, second) =>
-          new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
-      ),
+      ]),
     [linkedAccounts, pendingOutgoingRequests, transactionRequests],
   );
 
@@ -297,137 +386,17 @@ export default function DashboardPage() {
         {/* Side Panel */}
           <div className="space-y-6">
             {currentRole === 'guardian' ? (
-              <GlassPanel className="border-amber-500/30 bg-amber-500/10">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
-                    <Bell className="h-5 w-5 text-amber-400 animate-bounce" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Incoming Requests</h3>
-                    <p className="text-xs text-slate-400">
-                      New linking and transaction requests appear here
-                    </p>
-                  </div>
-                </div>
-                <div className="-mr-2 max-h-[28rem] space-y-3 overflow-y-auto pr-3">
-                  {guardianNotifications.length === 0 ? (
-                    <p className="text-sm leading-relaxed text-slate-300">
-                      No incoming requests right now. New link and transaction requests will appear here as a shortcut.
-                    </p>
-                  ) : (
-                    <>
-                      {guardianNotifications.map((notification) => (
-                        <button
-                          key={notification.id}
-                          type="button"
-                          onClick={() => navigate(notification.actionPath)}
-                          className={`w-full rounded-xl border p-4 text-left transition-all ${
-                            notification.tone === 'emerald'
-                              ? 'border-emerald-500/20 bg-slate-950/30 hover:border-emerald-400/40 hover:bg-slate-900/50'
-                              : 'border-amber-500/20 bg-slate-950/30 hover:border-amber-400/40 hover:bg-slate-900/50'
-                          }`}
-                        >
-                          <div className="mb-2 flex items-center gap-2">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
-                                notification.tone === 'emerald'
-                                  ? 'bg-emerald-500/15 text-emerald-300'
-                                  : 'bg-cyan-500/15 text-cyan-300'
-                              }`}
-                            >
-                              {notification.type === 'transaction' ? 'Transaction' : 'Linking'}
-                            </span>
-                          </div>
-                          <p className="font-medium text-white">{notification.title}</p>
-                          <p className="mt-1 text-sm text-slate-300">{notification.description}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {formatTimestamp(notification.timestamp)}
-                          </p>
-                          <p
-                            className={`mt-3 text-xs font-medium uppercase tracking-[0.18em] ${
-                              notification.tone === 'emerald'
-                                ? 'text-emerald-300'
-                                : 'text-amber-300'
-                            }`}
-                          >
-                            {notification.actionLabel}
-                          </p>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </GlassPanel>
+              <NotificationPanel
+                notifications={guardianNotifications}
+                emptyState="No notifications right now. New link and transaction requests will appear here."
+                onNavigate={(path) => navigate(path)}
+              />
             ) : (
-              <GlassPanel className="backdrop-blur-sm">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20">
-                    <Clock className="h-5 w-5 text-cyan-300" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white">Status Updates</h3>
-                    <p className="text-xs text-slate-400">
-                      Track guardian linking and transaction request updates
-                    </p>
-                  </div>
-                </div>
-                <div className="-mr-2 max-h-[28rem] space-y-3 overflow-y-auto pr-3">
-                  {dependentNotifications.map((notification) => (
-                    <button
-                      key={notification.id}
-                      type="button"
-                      onClick={() => navigate(notification.actionPath)}
-                      className={`w-full rounded-xl border p-4 text-left transition-all ${
-                        notification.tone === 'emerald'
-                          ? 'border-emerald-500/20 bg-emerald-500/10 hover:border-emerald-400/30 hover:bg-emerald-500/15'
-                          : notification.tone === 'red'
-                            ? 'border-red-500/20 bg-red-500/10 hover:border-red-400/30 hover:bg-red-500/15'
-                            : 'border-amber-500/20 bg-slate-900/50 hover:border-amber-400/30 hover:bg-slate-800/60'
-                      }`}
-                    >
-                      <div className="mb-2 flex items-center gap-2">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
-                            notification.tone === 'emerald'
-                              ? 'bg-emerald-500/15 text-emerald-300'
-                              : notification.tone === 'red'
-                                ? 'bg-red-500/15 text-red-300'
-                                : notification.type === 'link'
-                                  ? 'bg-cyan-500/15 text-cyan-300'
-                                  : 'bg-amber-500/15 text-amber-300'
-                          }`}
-                        >
-                          {notification.type === 'transaction' ? 'Transaction' : 'Linking'}
-                        </span>
-                      </div>
-                      <p className="font-medium text-white">{notification.title}</p>
-                      <p className="mt-1 text-sm text-slate-300">{notification.description}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {formatTimestamp(notification.timestamp)}
-                      </p>
-                      <p
-                        className={`mt-3 text-xs font-medium uppercase tracking-[0.18em] ${
-                          notification.tone === 'emerald'
-                            ? 'text-emerald-300'
-                            : notification.tone === 'red'
-                              ? 'text-red-300'
-                              : notification.type === 'link'
-                                ? 'text-cyan-300'
-                                : 'text-amber-300'
-                        }`}
-                      >
-                        {notification.actionLabel}
-                      </p>
-                    </button>
-                  ))}
-
-                  {dependentNotifications.length === 0 && (
-                    <p className="text-sm leading-relaxed text-slate-300">
-                      No status updates yet. Guardian link and transaction updates will appear here.
-                    </p>
-                  )}
-                </div>
-              </GlassPanel>
+              <NotificationPanel
+                notifications={dependentNotifications}
+                emptyState="No notifications yet. Guardian link and transaction updates will appear here."
+                onNavigate={(path) => navigate(path)}
+              />
             )}
 
             {/* Quick Stats */}

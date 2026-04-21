@@ -184,6 +184,9 @@ export default function ProtectedPersonPage() {
   }, [linkedGuardians, pendingOutgoingRequests, transactionRequests]);
 
   const primaryGuardian = linkedGuardians[0];
+  const selectedGuardian = linkedAccounts.find((link) => link.requestId === selectedLinkId);
+  const selectedGuardianSettings = selectedGuardian?.guardianSettings;
+  const isEmergencyLocked = selectedGuardianSettings?.emergencyLock ?? false;
   const displayName = getDisplayName();
 
   const startEditingNickname = (guardianId: string, currentNickname: string) => {
@@ -214,10 +217,16 @@ export default function ProtectedPersonPage() {
       return;
     }
 
+    if (isEmergencyLocked) {
+      setRequestTone('error');
+      setRequestFeedback('Your guardian has temporarily locked transaction requests.');
+      return;
+    }
+
     setIsSubmittingRequest(true);
 
     try {
-      await createRequest({
+      const createdRequest = await createRequest({
         linkId: selectedLinkId,
         amount: Number(amountInput),
         title: titleInput,
@@ -225,8 +234,16 @@ export default function ProtectedPersonPage() {
         details: detailsInput,
       });
 
-      setRequestTone('success');
-      setRequestFeedback('Transaction request sent to your guardian.');
+      if (createdRequest.status === 'rejected') {
+        setRequestTone('error');
+        setRequestFeedback(
+          createdRequest.rejectionReason ||
+            'This request was automatically blocked by your guardian safety settings.',
+        );
+      } else {
+        setRequestTone('success');
+        setRequestFeedback('Transaction request sent to your guardian.');
+      }
       setAmountInput('');
       setTitleInput('');
       setReasonInput('');
@@ -527,6 +544,11 @@ export default function ProtectedPersonPage() {
           >
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="space-y-4">
+                {isEmergencyLocked && (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    Your selected guardian has emergency lock enabled. New transaction requests are temporarily blocked.
+                  </div>
+                )}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-300">
                     Guardian
@@ -607,11 +629,15 @@ export default function ProtectedPersonPage() {
                 <button
                   type="button"
                   onClick={handleSubmitTransactionRequest}
-                  disabled={isSubmittingRequest || linkedGuardians.length === 0}
+                  disabled={isSubmittingRequest || linkedGuardians.length === 0 || isEmergencyLocked}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
                   <MessageSquare className="h-5 w-5" />
-                  {isSubmittingRequest ? 'Sending Request...' : 'Send to Guardian'}
+                  {isSubmittingRequest
+                    ? 'Sending Request...'
+                    : isEmergencyLocked
+                      ? 'Requests Locked by Guardian'
+                      : 'Send to Guardian'}
                 </button>
 
                 {requestFeedback && (

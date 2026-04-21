@@ -56,6 +56,7 @@ export default function useGuardianLinking() {
       nickname: request.nickname,
       name: request.requesterSerial === currentSerial ? undefined : request.requesterName,
       email: request.requesterSerial === currentSerial ? undefined : request.requesterEmail,
+      guardianSettings: request.guardianSettings,
       linkedAt: request.respondedAt ?? request.createdAt,
     }));
 

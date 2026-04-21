@@ -7,6 +7,31 @@ const inMemoryPersons = [
 
 const getPersons = () => inMemoryPersons;
 
+const DEFAULT_GUARDIAN_SETTINGS = {
+  emergencyLock: false,
+};
+
+const normalizeGuardianSettings = (settings) => ({
+  emergencyLock:
+    typeof settings?.emergencyLock === "boolean"
+      ? settings.emergencyLock
+      : DEFAULT_GUARDIAN_SETTINGS.emergencyLock,
+});
+
+const getGuardianSettingsForUser = async (userId) => {
+  if (!db) {
+    return DEFAULT_GUARDIAN_SETTINGS;
+  }
+
+  const userDoc = await db.collection("users").doc(userId).get();
+
+  if (!userDoc.exists) {
+    throw new Error("Guardian user not found.");
+  }
+
+  return normalizeGuardianSettings(userDoc.data()?.guardianSettings);
+};
+
 const enrichTransactionRequestDoc = async (doc) => {
   const data = doc.data();
   const [guardianDoc, dependentDoc, linkDoc] = await Promise.all([
@@ -25,6 +50,7 @@ const enrichTransactionRequestDoc = async (doc) => {
     guardianName: guardianData?.name ?? null,
     guardianEmail: guardianData?.email ?? null,
     guardianSerial: guardianData?.serialId ?? null,
+    guardianSettings: normalizeGuardianSettings(guardianData?.guardianSettings),
     dependentName: dependentData?.name ?? null,
     dependentEmail: dependentData?.email ?? null,
     dependentSerial: dependentData?.serialId ?? null,
@@ -222,12 +248,15 @@ export const getLinks = async (userId) => {
     const data = doc.data();
     const childDoc = await db.collection("users").doc(data.childId).get();
     const childData = childDoc.data();
+    const guardianDoc = await db.collection("users").doc(data.guardianId).get();
+    const guardianData = guardianDoc.data();
     links.push({
       id: doc.id,
       ...data,
       otherUserEmail: childData?.email,
       otherUserName: childData?.name,
       otherUserSerial: childData?.serialId,
+      guardianSettings: normalizeGuardianSettings(guardianData?.guardianSettings),
       role: "dependent",
     });
   }
@@ -242,6 +271,7 @@ export const getLinks = async (userId) => {
       otherUserEmail: guardianData?.email,
       otherUserName: guardianData?.name,
       otherUserSerial: guardianData?.serialId,
+      guardianSettings: normalizeGuardianSettings(guardianData?.guardianSettings),
       role: "guardian",
     });
   }
@@ -351,6 +381,14 @@ export const createTransactionRequest = async (
     throw new Error("You can only submit transaction requests for your own guardian link.");
   }
 
+  const guardianSettings = await getGuardianSettingsForUser(linkData.guardianId);
+
+  if (guardianSettings.emergencyLock) {
+    throw new Error("Your guardian has temporarily locked transaction requests.");
+  }
+
+  const now = new Date().toISOString();
+
   const newRequest = {
     linkId,
     guardianId: linkData.guardianId,
@@ -361,8 +399,9 @@ export const createTransactionRequest = async (
     details: nextDetails,
     status: "pending",
     rejectionReason: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
+    resolvedAt: null,
   };
 
   const docRef = await db.collection("transactionRequests").add(newRequest);
@@ -438,4 +477,32 @@ export const updateTransactionRequest = async (
 
   const updatedDoc = await requestRef.get();
   return enrichTransactionRequestDoc(updatedDoc);
+};
+
+export const getGuardianSettings = async (userId) => {
+  return getGuardianSettingsForUser(userId);
+};
+
+export const updateGuardianSettings = async (userId, updates) => {
+  if (!db) throw new Error("Firebase not configured.");
+
+  const userRef = db.collection("users").doc(userId);
+  const userDoc = await userRef.get();
+
+  if (!userDoc.exists) {
+    throw new Error("Guardian user not found.");
+  }
+
+  const currentSettings = normalizeGuardianSettings(userDoc.data()?.guardianSettings);
+  const nextSettings = normalizeGuardianSettings({
+    ...currentSettings,
+    ...updates,
+  });
+
+  await userRef.update({
+    guardianSettings: nextSettings,
+    updatedAt: new Date().toISOString(),
+  });
+
+  return nextSettings;
 };
