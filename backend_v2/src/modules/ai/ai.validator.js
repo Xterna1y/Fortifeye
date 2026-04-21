@@ -1,17 +1,29 @@
+const RISK_LEVELS = ["LOW", "MEDIUM", "HIGH"];
+const RECOMMENDED_ACTIONS = ["allow", "warn", "block"];
+
+const isFiniteNumber = (value) =>
+  typeof value === "number" && Number.isFinite(value);
+
+const isString = (value) => typeof value === "string";
+
+const isStringArray = (value) =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
+
 export const validateAIResponse = (data) => {
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+
   return (
-    data &&
-    Number.isFinite(data.risk_score) &&
+    isFiniteNumber(data.risk_score) &&
     data.risk_score >= 0 &&
     data.risk_score <= 100 &&
-    ["LOW", "MEDIUM", "HIGH"].includes(data.risk_level) &&
+    RISK_LEVELS.includes(data.risk_level) &&
     typeof data.scam_detected === "boolean" &&
-    Array.isArray(data.patterns) &&
-    data.patterns.every((pattern) => typeof pattern === "string") &&
-    typeof data.verdict === "string" &&
-    Array.isArray(data.reasons) &&
-    data.reasons.every((reason) => typeof reason === "string") &&
-    typeof data.explanation === "string" &&
-    ["allow", "warn", "block"].includes(data.recommended_action)
+    isStringArray(data.patterns) &&
+    isString(data.verdict) &&
+    isStringArray(data.reasons) &&
+    isString(data.explanation) &&
+    RECOMMENDED_ACTIONS.includes(data.recommended_action)
   );
 };
