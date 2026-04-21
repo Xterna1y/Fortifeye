@@ -25,6 +25,7 @@ const DEFAULT_VECTOR_FIELD = "embedding";
 const DEFAULT_VECTOR_DISTANCE = "COSINE";
 const DEFAULT_MATCH_LIMIT = 5;
 const DEFAULT_SCAN_LIMIT = 50;
+const SCAN_ALL_TOKEN = "all";
 const DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001";
 const DEFAULT_EMBEDDING_DIMENSION = 768;
 const DEFAULT_EMBEDDING_TIMEOUT_MS = 8000;
@@ -71,6 +72,28 @@ const parsePositiveInteger = (value, fallback) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const parseScanLimit = (value, fallback) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (
+    normalized === SCAN_ALL_TOKEN ||
+    normalized === "full" ||
+    normalized === "unlimited" ||
+    normalized === "entire" ||
+    normalized === "0"
+  ) {
+    return null;
+  }
+
+  return parsePositiveInteger(normalized, fallback);
+};
+
 const withTimeout = async (promise, timeoutMs, label) => {
   let timeoutId;
 
@@ -107,6 +130,9 @@ const truncate = (value, maxLength = 600) => {
 
   return `${text.slice(0, maxLength - 3)}...`;
 };
+
+const compactText = (value, maxLength = 120) =>
+  truncate(String(value || "").replace(/\s+/g, " "), maxLength);
 
 const uniqueStrings = (items) => [...new Set(items.filter(Boolean))];
 
@@ -698,6 +724,26 @@ const formatMatch = (snapshot, source, scoreField = null) => {
   };
 };
 
+const logRetrievalResult = ({ type, strategy, matches }) => {
+  const titles = matches
+    .map((match) => match?.metadata?.title)
+    .filter(Boolean)
+    .slice(0, 5)
+    .join(" | ");
+
+  console.log(
+    `[RAG] ${type} strategy=${strategy} matches=${matches.length}${titles ? ` titles=${titles}` : ""}`,
+  );
+};
+
+const logKeywordScan = ({ collectionName, scanLimit, scannedCount }) => {
+  console.log(
+    `[RAG] keyword scan collection=${collectionName} scanned=${scannedCount} limit=${
+      scanLimit === null ? SCAN_ALL_TOKEN : scanLimit
+    }`,
+  );
+};
+
 const queryVectorMatches = async (queryText) => {
   const embedding = await getQueryEmbedding(queryText);
 
@@ -773,7 +819,7 @@ const queryKeywordMatches = async (queryText) => {
   const firestore = getFirestoreClient();
   const queryTokens = new Set(normalizeTokens(queryText));
   const matches = [];
-  const scanLimit = parsePositiveInteger(
+  const scanLimit = parseScanLimit(
     process.env.RAG_KEYWORD_SCAN_LIMIT,
     DEFAULT_SCAN_LIMIT,
   );
@@ -788,11 +834,19 @@ const queryKeywordMatches = async (queryText) => {
 
   for (const collectionName of pickCollectionNames()) {
     try {
+      const collectionRef = firestore.collection(collectionName);
+      const query = scanLimit === null ? collectionRef : collectionRef.limit(scanLimit);
       const snapshot = await withTimeout(
-        firestore.collection(collectionName).limit(scanLimit).get(),
+        query.get(),
         firestoreTimeoutMs,
         `Firestore keyword retrieval for ${collectionName}`,
       );
+
+      logKeywordScan({
+        collectionName,
+        scanLimit,
+        scannedCount: snapshot.docs.length,
+      });
 
       for (const doc of snapshot.docs) {
         const data = doc.data();
@@ -830,10 +884,21 @@ const queryKeywordMatches = async (queryText) => {
 export const retrieveScamContext = async ({ type, payload, extractedSignals }) => {
   const query = buildRetrievalQuery(type, payload, extractedSignals);
 
+  console.log(
+    `[RAG] ${type} retrieval start query="${compactText(query)}" patterns=${
+      (extractedSignals?.detected_patterns || []).join(", ") || "none"
+    }`,
+  );
+
   try {
     const vectorMatches = await queryVectorMatches(query);
 
     if (vectorMatches.length > 0) {
+      logRetrievalResult({
+        type,
+        strategy: "vertex_embedding_plus_firestore_vector_search",
+        matches: vectorMatches,
+      });
       return {
         knowledge_base: "cloud_firestore",
         strategy: "vertex_embedding_plus_firestore_vector_search",
@@ -847,18 +912,26 @@ export const retrieveScamContext = async ({ type, payload, extractedSignals }) =
 
   try {
     const keywordMatches = await queryKeywordMatches(query);
+    const strategy =
+      keywordMatches.length > 0
+        ? "firestore_keyword_fallback"
+        : "no_retrieval_matches";
+
+    logRetrievalResult({
+      type,
+      strategy,
+      matches: keywordMatches,
+    });
 
     return {
       knowledge_base: "cloud_firestore",
-      strategy:
-        keywordMatches.length > 0
-          ? "firestore_keyword_fallback"
-          : "no_retrieval_matches",
+      strategy,
       match_count: keywordMatches.length,
       matches: keywordMatches,
     };
   } catch (error) {
     console.warn(`Keyword retrieval unavailable: ${error.message}`);
+    console.warn(`[RAG] ${type} retrieval unavailable`);
     return {
       knowledge_base: "cloud_firestore",
       strategy: "retrieval_unavailable",

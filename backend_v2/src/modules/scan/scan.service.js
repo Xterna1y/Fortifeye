@@ -1,44 +1,53 @@
-import { analyzeTextRisk, analyzeUrlRisk } from "../ai/gemini.service.js";
-import { readData, writeData } from "../../config/db.js";
 import { v4 as uuid } from "uuid";
+import { db } from "../../config/db.js";
+import { analyzeTextRisk, analyzeUrlRisk } from "../ai/gemini.service.js";
 
-export const scanText = async (text) => {
-  const aiResult = await analyzeTextRisk({ text });
-  const scans = readData("scans");
+const COLLECTION = "scans";
 
+const saveScan = async ({ type, input, aiResult }) => {
   const newScan = {
     id: uuid(),
-    type: "text",
-    input: text,
+    type,
+    input,
     ...aiResult,
     createdAt: new Date().toISOString(),
   };
 
-  scans.push(newScan);
-  writeData("scans", scans);
-
+  await db.collection(COLLECTION).doc(newScan.id).set(newScan);
+  console.log(
+    `[SCAN] ${type} saved id=${newScan.id} risk=${newScan.risk_score} action=${newScan.recommended_action} model=${newScan.model || "unknown"}`,
+  );
   return newScan;
+};
+
+export const scanText = async (text) => {
+  console.log(`[SCAN] text start length=${String(text || "").length}`);
+  const aiResult = await analyzeTextRisk({ text });
+
+  return saveScan({
+    type: "text",
+    input: text,
+    aiResult,
+  });
 };
 
 export const scanUrl = async (url) => {
+  console.log(`[SCAN] url start value=${String(url || "")}`);
   const aiResult = await analyzeUrlRisk({ url });
-  const scans = readData("scans");
 
-  const newScan = {
-    id: uuid(),
+  return saveScan({
     type: "url",
     input: url,
-    ...aiResult,
-    createdAt: new Date().toISOString(),
-  };
-
-  scans.push(newScan);
-  writeData("scans", scans);
-
-  return newScan;
+    aiResult,
+  });
 };
 
-export const getScan = (id) => {
-  const scans = readData("scans");
-  return scans.find((scan) => scan.id === id);
+export const getScan = async (id) => {
+  const doc = await db.collection(COLLECTION).doc(id).get();
+
+  if (!doc.exists) {
+    return null;
+  }
+
+  return doc.data();
 };

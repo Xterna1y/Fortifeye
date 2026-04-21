@@ -68,6 +68,15 @@ const parsePositiveInteger = (value, fallback) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const compactText = (value, maxLength = 180) => {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 3)}...`;
+};
+
 const withTimeout = async (promise, timeoutMs, label) => {
   let timeoutId;
 
@@ -215,6 +224,13 @@ const buildKnowledgeBaseReason = (retrievedContext) => {
 
   return `Matched ${retrievedContext.match_count} related scam pattern${retrievedContext.match_count === 1 ? "" : "s"} from the Firestore knowledge base`;
 };
+
+const summarizeMatchTitles = (retrievedContext) =>
+  (retrievedContext?.matches || [])
+    .map((match) => match?.metadata?.title || match?.id)
+    .filter(Boolean)
+    .slice(0, 5)
+    .join(" | ");
 
 const buildFallbackAnalysis = ({
   type,
@@ -527,7 +543,7 @@ const parseModelJson = (text) => {
   throw lastError || new Error("Unable to parse model JSON output");
 };
 
-export const callGemini = async (prompt, fallbackAnalysis) => {
+export const callGemini = async (prompt, fallbackAnalysis, debugContext = {}) => {
   const modelTimeoutMs = parsePositiveInteger(
     process.env.AI_MODEL_TIMEOUT_MS,
     DEFAULT_MODEL_TIMEOUT_MS,
@@ -539,8 +555,19 @@ export const callGemini = async (prompt, fallbackAnalysis) => {
   const client = getVertexAI();
 
   if (!client) {
+    console.warn(
+      `[AI] ${debugContext.type || "analysis"} live Vertex unavailable, using fallback`,
+    );
     return fallbackAnalysis;
   }
+
+  console.log(
+    `[AI] ${debugContext.type || "analysis"} start patterns=${
+      (debugContext.extractedSignals?.detected_patterns || []).join(", ") || "none"
+    } rag=${debugContext.retrievedContext?.strategy || "unavailable"}:${
+      debugContext.retrievedContext?.match_count ?? 0
+    }`,
+  );
 
   for (const modelName of MODELS) {
     try {
@@ -584,6 +611,7 @@ export const callGemini = async (prompt, fallbackAnalysis) => {
           timestamp: new Date().toISOString(),
           model: modelName,
           stage: "success",
+          analysis_context: debugContext,
           finishReason: candidate?.finishReason || null,
           usageMetadata: response?.usageMetadata || null,
           parts: candidate?.content?.parts || [],
@@ -591,8 +619,11 @@ export const callGemini = async (prompt, fallbackAnalysis) => {
           parsed_text: normalizedText,
           parsed_output: parsed,
         });
-
-        return normalizeAIResponse(parsed, fallbackAnalysis, modelName);
+        const normalized = normalizeAIResponse(parsed, fallbackAnalysis, modelName);
+        console.log(
+          `[AI] ${debugContext.type || "analysis"} completed model=${modelName} risk=${normalized.risk_score} action=${normalized.recommended_action}`,
+        );
+        return normalized;
       } catch (error) {
         console.warn(
           `JSON parse failed for ${modelName}, using deterministic fallback: ${error.message}`,
@@ -602,6 +633,7 @@ export const callGemini = async (prompt, fallbackAnalysis) => {
           timestamp: new Date().toISOString(),
           model: modelName,
           stage: "json_parse_failed",
+          analysis_context: debugContext,
           finishReason: candidate?.finishReason || null,
           usageMetadata: response?.usageMetadata || null,
           parts: candidate?.content?.parts || [],
@@ -609,6 +641,12 @@ export const callGemini = async (prompt, fallbackAnalysis) => {
           raw_text: text,
           extracted_json: extractJsonPayload(text),
         });
+
+        console.warn(
+          `[AI] ${debugContext.type || "analysis"} fallback after parse failure rag=${
+            debugContext.retrievedContext?.strategy || "unavailable"
+          }:${debugContext.retrievedContext?.match_count ?? 0}`,
+        );
 
         return {
           ...fallbackAnalysis,
@@ -642,8 +680,35 @@ const analyzeRisk = async ({ type, payload, signalExtractor }) => {
     extracted_signals: extractedSignals,
     retrieved_context: retrievedContext,
   });
+  const matchTitles = summarizeMatchTitles(retrievedContext);
 
-  return callGemini(prompt, fallbackAnalysis);
+  console.log(
+    `[AI] ${type} prompt ready length=${prompt.length} extracted=${
+      extractedSignals.detected_patterns?.join(", ") || "none"
+    } rag=${retrievedContext.strategy}:${retrievedContext.match_count}${
+      matchTitles ? ` titles=${matchTitles}` : ""
+    }`,
+  );
+  console.log(
+    `[AI] ${type} input preview="${compactText(
+      type === "text"
+        ? payload.text
+        : type === "url"
+          ? payload.url || payload.current_url
+          : `${payload.current_url || payload.submitted_url || ""} ${(payload.events || []).join(" ")}`,
+    )}"`,
+  );
+
+  return callGemini(prompt, fallbackAnalysis, {
+    type,
+    payload_preview:
+      type === "text"
+        ? compactText(payload.text)
+        : compactText(payload.url || payload.current_url || payload.submitted_url),
+    extractedSignals,
+    retrievedContext,
+    fallbackAnalysis,
+  });
 };
 
 export const analyzeTextRisk = async ({ text }) =>
