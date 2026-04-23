@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   Ban,
@@ -139,23 +139,40 @@ export default function GuardianDashboardPage() {
     { key: 'requests', label: 'Transaction Requests' },
     { key: 'settings', label: 'Settings' },
   ];
+  const linkedLabel = 'dependent';
+  const dashboardTitle = 'Guardian Dashboard';
+  const dashboardDescription = 'Monitor and protect your linked users with live database-backed alerts and requests.';
+  const accessTitle = 'Guardian Access';
+  const accessDescription =
+    linkedAccounts.length > 0
+      ? `You currently have ${linkedAccounts.length} linked ${linkedLabel}${linkedAccounts.length === 1 ? ' account' : ' accounts'}.`
+      : `No ${linkedLabel} links are active yet.`;
+  const accessSummary = `Incoming link requests: ${pendingIncomingRequests.length}. Pending guardian reviews: ${transactionRequests.length}.`;
+  const overviewTitle = 'People You Protect';
+  const overviewEmptyTitle = 'No protected users yet';
+  const overviewEmptyDescription =
+    'Accepted dependent links will show up here once another user connects to this guardian.';
+  const settingsTitle = 'Protected People Settings';
+  const settingsEmptyTitle = 'No linked people yet';
+  const settingsEmptyDescription =
+    'Guardian nicknames and linked-account management will appear here after a dependent is connected.';
+
+  if (currentRole !== 'guardian') {
+    return <Navigate to="/protected" replace />;
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
-        title="Guardian Dashboard"
-        description="Monitor and protect your linked users with live database-backed alerts and requests."
+        title={dashboardTitle}
+        description={dashboardDescription}
       />
 
       <SegmentedTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
       <GlassPanel
-        title="Guardian Access"
-        description={
-          linkedAccounts.length > 0
-            ? `You currently have ${linkedAccounts.length} linked ${linkedAccounts.length === 1 ? 'account' : 'accounts'}.`
-            : 'No guardian/dependent links are active yet.'
-        }
+        title={accessTitle}
+        description={accessDescription}
         className="mb-6"
         titleAction={
           <Button onClick={() => navigate('/guardian-link')} variant="secondary">
@@ -168,9 +185,7 @@ export default function GuardianDashboardPage() {
             <p className="font-medium text-white">
               {currentRole === 'guardian' ? 'Guardian mode selected' : 'Dependent mode selected'}
             </p>
-            <p className="text-slate-400">
-              Incoming link requests: {pendingIncomingRequests.length}. Pending guardian reviews: {transactionRequests.length}.
-            </p>
+            <p className="text-slate-400">{accessSummary}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <StatusBadge tone={currentRole === 'guardian' ? 'info' : 'neutral'}>
@@ -196,7 +211,7 @@ export default function GuardianDashboardPage() {
                     <StatusBadge tone="success">Linked</StatusBadge>
                   </div>
                   <p className="text-sm text-slate-400">
-                    {link.email || link.serial} • linked as a {link.role} on {new Date(link.linkedAt).toLocaleDateString()}.
+                    {link.email || link.serial} • linked as your {link.role} on {new Date(link.linkedAt).toLocaleDateString()}.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -227,13 +242,13 @@ export default function GuardianDashboardPage() {
             <StatCard label="Blocked" value={alerts.filter((alert) => alert.status === 'blocked').length + dashboard.summary.threatsBlocked} icon={Ban} iconWrapperClassName="bg-red-500/20" iconClassName="text-red-400" />
           </div>
 
-          <GlassPanel title="People You Protect">
+          <GlassPanel title={overviewTitle}>
             <div className="space-y-4">
               {linkedAccounts.length === 0 ? (
                 <EmptyState
                   icon={Shield}
-                  title="No protected users yet"
-                  description="Accepted dependent links will show up here once another user connects to this guardian."
+                  title={overviewEmptyTitle}
+                  description={overviewEmptyDescription}
                 />
               ) : (
                 linkedAccounts.map((person) => (
@@ -250,7 +265,7 @@ export default function GuardianDashboardPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400">
-                        {dashboard.riskOverview.level} Protection
+                        {`${dashboard.riskOverview.level} Protection`}
                       </span>
                     </div>
                   </div>
@@ -344,7 +359,9 @@ export default function GuardianDashboardPage() {
                   <Bell className="h-5 w-5 text-cyan-400" />
                   <div>
                     <p className="font-medium text-white">Pending Notifications</p>
-                    <p className="text-sm text-slate-400">These are the live guardian notifications waiting for review.</p>
+                    <p className="text-sm text-slate-400">
+                      These are the live guardian notifications waiting for review.
+                    </p>
                   </div>
                 </div>
                 <span className="text-sm font-semibold text-amber-400">{transactionRequests.length}</span>
@@ -362,13 +379,13 @@ export default function GuardianDashboardPage() {
             </div>
           </GlassPanel>
 
-          <GlassPanel title="Protected People Settings">
+          <GlassPanel title={settingsTitle}>
             <div className="space-y-4">
               {linkedAccounts.length === 0 ? (
                 <EmptyState
                   icon={User}
-                  title="No linked people yet"
-                  description="Guardian nicknames and linked-account management will appear here after a dependent is connected."
+                  title={settingsEmptyTitle}
+                  description={settingsEmptyDescription}
                 />
               ) : (
                 linkedAccounts.map((person) => (

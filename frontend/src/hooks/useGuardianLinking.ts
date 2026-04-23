@@ -39,6 +39,7 @@ export default function useGuardianLinking() {
 
   const linkedAccounts: LinkedGuardianAccount[] = linkedRequests.map((request) => ({
       requestId: request.id,
+      userId: request.linkedUserId,
       serial: request.requesterSerial === currentSerial ? request.targetSerial : request.requesterSerial,
       role: request.requesterSerial === currentSerial ? getTargetRole(request.requesterRole) : request.requesterRole,
       nickname: request.nickname,

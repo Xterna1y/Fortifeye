@@ -4,6 +4,7 @@ export interface GuardianLinkRequest {
   id: string;
   requesterRole: GuardianRole;
   requesterSerial: string;
+  linkedUserId?: string;
   requesterName?: string;
   requesterEmail?: string;
   targetSerial: string;
@@ -26,6 +27,7 @@ export interface SendRequestResult {
 
 export interface LinkedGuardianAccount {
   requestId: string;
+  userId?: string;
   serial: string;
   role: GuardianRole;
   nickname?: string;

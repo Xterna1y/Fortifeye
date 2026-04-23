@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   Activity,
@@ -28,10 +28,43 @@ const navItems = [
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const [accountOpen, setAccountOpen] = useState(false);
-  const user = useMemo(() => {
+  const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('fortifeye.user');
     return stored ? JSON.parse(stored) : null;
+  });
+
+  useEffect(() => {
+    const syncUser = () => {
+      const stored = localStorage.getItem('fortifeye.user');
+      setUser(stored ? JSON.parse(stored) : null);
+    };
+
+    window.addEventListener('storage', syncUser);
+    window.addEventListener('fortifeye-user-updated', syncUser);
+    return () => {
+      window.removeEventListener('storage', syncUser);
+      window.removeEventListener('fortifeye-user-updated', syncUser);
+    };
   }, []);
+
+  const isGuardian = user?.identity === 'guardian';
+  const isDependent = Boolean(user) && !isGuardian;
+
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.filter((item) => {
+        if (item.to === '/guardian') {
+          return isGuardian;
+        }
+
+        if (item.to === '/protected') {
+          return isDependent;
+        }
+
+        return true;
+      }),
+    [isDependent, isGuardian],
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -49,7 +82,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
 
         <nav className="space-y-2">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {visibleNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

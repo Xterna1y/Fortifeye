@@ -236,21 +236,23 @@ export default function InputPage() {
   const voiceContent = `${voiceTranscript} ${voiceInterim}`.trim();
 
   return (
-    <main className="max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
         title="Analyze Message or Call"
         description="Paste suspicious text or speak into the mic and Fortifeye will score the risk instantly."
         action={
           <button
             onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-700/70 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-slate-600 hover:text-white"
+            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-700/70 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition-all hover:border-slate-600 hover:text-white sm:w-auto"
           >
             Back to Dashboard
           </button>
         }
       />
 
-      <SegmentedTabs activeTab={mode} onChange={setMode} tabs={modeTabs} className="justify-center" />
+      <div className="mb-6 flex justify-center lg:justify-start">
+        <SegmentedTabs activeTab={mode} onChange={setMode} tabs={modeTabs} className="w-full justify-center sm:w-auto sm:justify-start" />
+      </div>
 
       <GlassPanel padding="lg" className="mb-6">
         <h2 className="mb-4 text-xl font-semibold text-white">
@@ -263,14 +265,14 @@ export default function InputPage() {
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder="Paste the suspicious message here... (e.g., 'Your account has been compromised. Transfer RM5000 immediately to secure your funds.')"
-              className="h-48 w-full resize-none rounded-xl border border-slate-600/50 bg-slate-900/50 px-4 py-4 text-white placeholder-slate-500 transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+              className="h-52 min-h-[14rem] w-full resize-y rounded-xl border border-slate-600/50 bg-slate-900/50 px-4 py-4 text-base leading-relaxed text-white placeholder-slate-500 transition-all focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
             />
             <p className="mt-2 text-xs text-slate-500">
               Include any details like sender, requested action, and urgency indicators.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-12">
+          <div className="flex flex-col items-center justify-center py-8 sm:py-10">
             <div
               className={`relative mb-6 flex h-32 w-32 items-center justify-center rounded-full ${
                 isRecording
@@ -332,11 +334,11 @@ export default function InputPage() {
         )}
       </GlassPanel>
 
-      <div className="mb-8 flex justify-center">
+      <div className="mb-8 flex justify-center lg:justify-start">
         <button
           onClick={handleAnalyze}
           disabled={status === 'analyzing' || (mode === 'text' && !text.trim()) || (mode === 'voice' && !voiceContent)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-12 py-4 font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:from-cyan-400 hover:to-emerald-400 hover:shadow-cyan-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-8 py-4 font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:from-cyan-400 hover:to-emerald-400 hover:shadow-cyan-500/40 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[18rem]"
         >
           {status === 'analyzing' ? (
             <>
@@ -354,7 +356,7 @@ export default function InputPage() {
 
       {status === 'complete' && result && (
         <GlassPanel padding="lg">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-white">Analysis Results</h2>
             <div className={`flex items-center gap-2 rounded-xl border px-4 py-2 ${getActionColor(result.recommended_action)}`}>
               {getActionIcon(result.recommended_action)}
@@ -362,7 +364,7 @@ export default function InputPage() {
             </div>
           </div>
 
-          <div className="mb-8 flex items-center justify-center">
+          <div className="mb-8 flex items-center justify-center lg:justify-start">
             <div className="relative h-40 w-40">
               <svg className="h-full w-full -rotate-90 transform">
                 <circle cx="80" cy="80" r="70" fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-700" />
@@ -421,7 +423,7 @@ export default function InputPage() {
             </div>
           )}
 
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             <button
               onClick={resetAnalysis}
               className="flex-1 rounded-xl border border-slate-600/30 bg-slate-700/50 py-3 font-medium text-white transition-all hover:bg-slate-700/70"

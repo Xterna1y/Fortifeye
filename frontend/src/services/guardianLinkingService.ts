@@ -15,6 +15,7 @@ const getUser = () => {
 
 const setUser = (user: any) => {
   localStorage.setItem('fortifeye.user', JSON.stringify(user));
+  window.dispatchEvent(new Event('fortifeye-user-updated'));
 };
 
 export const guardianLinkingService = {
@@ -53,6 +54,7 @@ export const guardianLinkingService = {
           id: link.id,
           requesterRole: link.role === 'guardian' ? 'guardian' : 'dependent',
           requesterSerial: link.otherUserSerial,
+          linkedUserId: link.role === 'guardian' ? link.guardianId : link.childId,
           requesterName: link.otherUserName,
           requesterEmail: link.otherUserEmail,
           targetSerial: user.serialId,
@@ -87,8 +89,13 @@ export const guardianLinkingService = {
     }
 
     const handleStorage = () => listener();
+    const handleUserUpdate = () => listener();
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('fortifeye-user-updated', handleUserUpdate);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('fortifeye-user-updated', handleUserUpdate);
+    };
   },
 
   async setRole(role: GuardianRole): Promise<GuardianLinkingState> {
@@ -146,7 +153,7 @@ export const guardianLinkingService = {
           const profileRes = await fetch(`${API_BASE_URL}/auth/profile/${user.id}`);
           const updatedUser = await parseJsonResponse<any>(profileRes);
           if (profileRes.ok) {
-            localStorage.setItem('fortifeye.user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
           }
         }
       }

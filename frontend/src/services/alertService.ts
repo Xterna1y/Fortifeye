@@ -30,3 +30,20 @@ export async function updateGuardianAlertStatus(
 
   return parseJsonResponse<GuardianAlert>(response);
 }
+
+export async function createGuardianAlert(payload: {
+  title?: string;
+  message: string;
+  type?: string;
+  riskLevel?: string;
+  guardianId: string;
+  dependentId: string;
+}) {
+  const response = await fetch(`${API_BASE_URL}/alerts/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  return parseJsonResponse<GuardianAlert>(response);
+}
