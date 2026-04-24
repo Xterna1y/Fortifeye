@@ -71,12 +71,15 @@ npm run dev
 
 ### Dependent account
 
-* **Email:** [dependent@123.com](mailto:dependent@123.com)
+* **Email:** [dependent01@gmail.com]
+* **Password:** 12345678
+
+* **Email:** [dependent02@gmail.com]
 * **Password:** 12345678
 
 ### Guardian account
 
-* **Email:** [guardian@123.com](mailto:guardian@123.com)
+* **Email:** [guardian@gmail.com](mailto:guardian@123.com)
 * **Password:** 12345678
 
 ## Key Features
