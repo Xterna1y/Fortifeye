@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Bell,
   CheckCircle,
   Clock,
   Send,
-  Eye,
-  EyeOff,
   Link2,
   Mail,
   PencilLine,
   Shield,
-  User,
   XCircle,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -20,18 +18,11 @@ import PageHeader from '../../components/ui/PageHeader';
 import SegmentedTabs from '../../components/ui/SegmentedTabs';
 import StatCard from '../../components/ui/StatCard';
 import useGuardianLinking from '../../hooks/useGuardianLinking';
-import { getDashboardData, type DashboardData } from '../../services/dashboardService';
-import { createGuardianAlert } from '../../services/alertService';
-
-const defaultDashboard: DashboardData = {
-  stats: { protected: 0, blocked: 0, verified: 0, alerts: 0 },
-  recentAlerts: [],
-  summary: { messagesAnalyzed: 0, callsScreened: 0, threatsBlocked: 0, safeTransactions: 0 },
-  riskOverview: { level: 'High', safeScore: 100 },
-  guardian: { hasGuardian: false },
-  safetyTip:
-    'Banks will never ask for your password or PIN via phone or message. Always verify requests through official channels.',
-};
+import {
+  createTransactionRequest,
+  getDependentTransactionRequests,
+  type TransactionRequest,
+} from '../../services/transactionRequestService';
 
 function formatRelativeTime(value?: string) {
   if (!value) return 'Just now';
@@ -45,52 +36,84 @@ function formatRelativeTime(value?: string) {
 }
 
 export default function ProtectedPersonPage() {
-  const [showBalance, setShowBalance] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'settings'>('overview');
-  const [dashboard, setDashboard] = useState<DashboardData>(defaultDashboard);
+  const [requests, setRequests] = useState<TransactionRequest[]>([]);
   const [requestAmount, setRequestAmount] = useState('');
   const [requestReason, setRequestReason] = useState('');
   const [requestFeedback, setRequestFeedback] = useState<string | null>(null);
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
-  const { guardian, linkedAccounts, updateLinkNickname } = useGuardianLinking();
+  const { guardian, linkedAccounts, updateLinkNickname, currentRole, isLoading } =
+    useGuardianLinking();
+
+  const refreshDependentRequests = async () => {
+    try {
+      const storedUser = localStorage.getItem('fortifeye.user');
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      if (!user?.id) {
+        setRequests([]);
+        return;
+      }
+
+      const data = await getDependentTransactionRequests(user.id);
+      setRequests(data);
+    } catch (error) {
+      console.error('Failed to load protected transaction requests:', error);
+    }
+  };
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'overview' || tab === 'transactions' || tab === 'settings') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const storedUser = localStorage.getItem('fortifeye.user');
-        const user = storedUser ? JSON.parse(storedUser) : null;
-        if (!user?.id) {
-          return;
-        }
-
-        const data = await getDashboardData(user.id);
-        setDashboard(data);
-      } catch (error) {
-        console.error('Failed to load protected dashboard:', error);
-      }
+      await refreshDependentRequests();
     };
 
     load();
+
+    const intervalId = window.setInterval(() => {
+      refreshDependentRequests();
+    }, 10000);
+
+    const handleFocus = () => {
+      refreshDependentRequests();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const transactions = useMemo(
     () =>
-      dashboard.recentAlerts.map((alert, index) => ({
-        id: alert.id,
-        amount: alert.type === 'danger' ? 500 : alert.type === 'warning' ? 250 : 80,
-        description: alert.message,
-        timestamp: formatRelativeTime(alert.createdAt),
-        status:
-          alert.type === 'danger' ? 'blocked' : alert.type === 'warning' ? 'pending' : 'approved',
-        guardianApproved: alert.type === 'success',
-        accountName: linkedAccounts[0]?.nickname || linkedAccounts[0]?.name || 'Protected account',
-        index,
-      })),
-    [dashboard.recentAlerts, linkedAccounts],
+      requests.map((request) => {
+        return {
+          id: request.id,
+          amount: Number.isFinite(request.amount) ? request.amount : null,
+          description: request.title || request.message || 'Transaction request',
+          detail: request.message || '',
+          timestamp: formatRelativeTime(request.updatedAt || request.createdAt),
+          status:
+            request.status === 'approved'
+              ? 'approved'
+              : request.status === 'denied'
+                ? 'blocked'
+                : 'pending',
+          decisionReason: request.decisionReason || '',
+          guardianApproved: request.status === 'approved',
+        };
+      }),
+    [requests],
   );
 
-  const guardianName = guardian?.nickname || guardian?.name || 'Guardian not linked';
-  const balance = dashboard.riskOverview.safeScore * 100;
   const linkedGuardians = useMemo(
     () =>
       linkedAccounts
@@ -129,23 +152,26 @@ export default function ProtectedPersonPage() {
       });
     }
 
-    dashboard.recentAlerts.forEach((alert) => {
+    requests.forEach((request) => {
       items.push({
-        id: `alert-${alert.id}`,
+        id: `request-${request.id}`,
         type:
-          alert.type === 'danger'
+          request.status === 'denied'
             ? ('warning' as const)
-            : alert.type === 'success'
+            : request.status === 'approved'
               ? ('success' as const)
               : ('info' as const),
         title:
-          alert.type === 'danger'
-            ? 'Protection warning'
-            : alert.type === 'success'
-              ? 'Guardian-approved activity'
-              : 'Guardian action pending',
-        detail: alert.message,
-        timestamp: alert.createdAt,
+          request.status === 'denied'
+            ? 'Transaction request denied'
+            : request.status === 'approved'
+              ? 'Transaction request approved'
+              : 'Transaction request awaiting approval',
+        detail:
+          request.status === 'denied' && request.decisionReason
+            ? `${request.message || request.title || 'A request was denied.'} Reason: ${request.decisionReason}`
+            : request.message || request.title || 'No details provided.',
+        timestamp: request.updatedAt || request.createdAt,
       });
     });
 
@@ -153,7 +179,7 @@ export default function ProtectedPersonPage() {
       (first, second) =>
         new Date(second.timestamp || 0).getTime() - new Date(first.timestamp || 0).getTime(),
     );
-  }, [dashboard.recentAlerts, linkedGuardians]);
+  }, [requests, linkedGuardians]);
 
   const handleSubmitTransactionRequest = async () => {
     const storedUser = localStorage.getItem('fortifeye.user');
@@ -179,14 +205,16 @@ export default function ProtectedPersonPage() {
     setRequestFeedback(null);
 
     try {
-      await createGuardianAlert({
+      await createTransactionRequest({
         guardianId: guardian.userId,
         dependentId: user.id,
-        type: 'warning',
         riskLevel: 'medium',
         title: `Transaction request from ${user.name || user.email || 'dependent user'}`,
-        message: `${requestReason.trim()} (RM${amount.toLocaleString()})`,
+        message: requestReason.trim(),
+        amount,
       });
+
+      await refreshDependentRequests();
 
       setRequestAmount('');
       setRequestReason('');
@@ -218,6 +246,19 @@ export default function ProtectedPersonPage() {
     { key: 'settings', label: 'Privacy Settings' },
   ];
 
+  const handleTabChange = (tab: 'overview' | 'transactions' | 'settings') => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
+  if (isLoading) {
+    return <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8" />;
+  }
+
+  if (currentRole === 'guardian') {
+    return <Navigate to="/guardian?tab=requests" replace />;
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
@@ -225,36 +266,9 @@ export default function ProtectedPersonPage() {
         description="See the live activity and guardian notifications attached to this account."
       />
 
-      <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 p-6">
-        <div className="absolute right-0 top-0 h-64 w-64 translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10" />
-        <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-1/2 translate-y-1/2 rounded-full bg-white/5" />
-
-        <div className="relative z-10">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm text-white/80">Protection Score</span>
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-white/80" />
-              <span className="text-xs text-white/80">Guardian Protected</span>
-            </div>
-          </div>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            {showBalance ? (
-              <span className="text-4xl font-bold text-white">RM{balance.toLocaleString()}</span>
-            ) : (
-              <span className="text-4xl font-bold text-white">••••••</span>
-            )}
-            <button
-              onClick={() => setShowBalance(!showBalance)}
-              className="rounded-lg bg-white/20 p-2 transition-colors hover:bg-white/30"
-            >
-              {showBalance ? <EyeOff className="h-5 w-5 text-white" /> : <Eye className="h-5 w-5 text-white" />}
-            </button>
-          </div>
-          <p className="text-sm text-white/70">Safe score mirrored from live dashboard data</p>
-        </div>
+      <div className="mb-6">
+        <SegmentedTabs activeTab={activeTab} onChange={handleTabChange} tabs={tabs} />
       </div>
-
-      <SegmentedTabs activeTab={activeTab} onChange={setActiveTab} tabs={tabs} />
 
       {activeTab === 'overview' && (
         <div className="space-y-4">
@@ -465,7 +479,9 @@ export default function ProtectedPersonPage() {
                     </div>
                   </div>
                   <div className="w-full text-left sm:w-auto sm:text-right">
-                    <p className="text-xl font-bold text-white">RM{transaction.amount}</p>
+                    <p className="text-xl font-bold text-white">
+                      {transaction.amount === null ? 'Amount unavailable' : `RM${transaction.amount}`}
+                    </p>
                     <div className="mt-1 flex items-center justify-end gap-1">
                       {transaction.status === 'approved' && transaction.guardianApproved && (
                         <>
@@ -482,10 +498,15 @@ export default function ProtectedPersonPage() {
                       {transaction.status === 'blocked' && (
                         <>
                           <XCircle className="h-3 w-3 text-red-400" />
-                          <span className="text-xs text-red-400">Blocked by guardian</span>
+                          <span className="text-xs text-red-400">Denied by guardian</span>
                         </>
                       )}
                     </div>
+                    {transaction.decisionReason && (
+                      <p className="mt-2 text-xs text-slate-400 sm:text-right">
+                        Reason: {transaction.decisionReason}
+                      </p>
+                    )}
                   </div>
                 </div>
               </GlassPanel>
@@ -521,7 +542,9 @@ export default function ProtectedPersonPage() {
             <GlassPanel title="Guardian Profile">
               <div className="flex flex-col gap-4 rounded-xl bg-slate-900/50 p-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="font-medium text-white">{guardianName}</p>
+                  <p className="font-medium text-white">
+                    {guardian.nickname || guardian.name || guardian.serial}
+                  </p>
                   <p className="text-sm text-slate-400">{guardian.email || guardian.serial}</p>
                 </div>
                 <Button onClick={handleEditGuardianNickname} variant="secondary" className="px-3 py-2 text-xs">

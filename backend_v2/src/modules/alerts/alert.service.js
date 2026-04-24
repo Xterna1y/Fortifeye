@@ -29,7 +29,22 @@ export const getAlertsByGuardian = async (guardianId) => {
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 };
 
-export const updateAlertStatus = async (alertId, status) => {
+export const getAlertsByDependent = async (dependentId) => {
+  if (!db) {
+    return [];
+  }
+
+  const snapshot = await db
+    .collection("alerts")
+    .where("dependentId", "==", dependentId)
+    .get();
+
+  return snapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+};
+
+export const updateAlertStatus = async (alertId, status, decisionReason) => {
   if (!db) {
     return null;
   }
@@ -43,6 +58,7 @@ export const updateAlertStatus = async (alertId, status) => {
 
   await ref.update({
     status,
+    decisionReason: typeof decisionReason === "string" ? decisionReason.trim() : "",
     updatedAt: new Date().toISOString(),
   });
 

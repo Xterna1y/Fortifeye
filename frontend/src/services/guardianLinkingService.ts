@@ -7,6 +7,7 @@ import type {
 import { API_BASE_URL, parseJsonResponse } from '../config/api';
 
 const GUARDIAN_API_BASE_URL = `${API_BASE_URL}/guardian`;
+const LINKING_ROLE_STORAGE_KEY = 'fortifeye.linkingRole';
 
 const getUser = () => {
   const userJson = localStorage.getItem('fortifeye.user');
@@ -16,6 +17,39 @@ const getUser = () => {
 const setUser = (user: any) => {
   localStorage.setItem('fortifeye.user', JSON.stringify(user));
   window.dispatchEvent(new Event('fortifeye-user-updated'));
+};
+
+const getStoredLinkingRole = (): GuardianRole => {
+  const storedRole = localStorage.getItem(LINKING_ROLE_STORAGE_KEY);
+  return storedRole === 'guardian' ? 'guardian' : 'dependent';
+};
+
+const setStoredLinkingRole = (role: GuardianRole) => {
+  localStorage.setItem(LINKING_ROLE_STORAGE_KEY, role);
+  window.dispatchEvent(new Event('fortifeye-user-updated'));
+};
+
+const inferCurrentRole = (
+  user: { identity?: string } | null,
+  links: Array<{ role?: string }> = [],
+): GuardianRole => {
+  if (links.some((link) => link.role === 'dependent')) {
+    return 'guardian';
+  }
+
+  if (links.some((link) => link.role === 'guardian')) {
+    return 'dependent';
+  }
+
+  if (user?.identity === 'guardian') {
+    return 'guardian';
+  }
+
+  if (user?.identity === 'dependent') {
+    return 'dependent';
+  }
+
+  return getStoredLinkingRole();
 };
 
 export const guardianLinkingService = {
@@ -38,6 +72,7 @@ export const guardianLinkingService = {
       
       const requests = await parseJsonResponse<any[]>(requestsRes);
       const links = await parseJsonResponse<any[]>(linksRes);
+      const currentRole = inferCurrentRole(user, links);
       
       const allRequests: GuardianLinkRequest[] = [
         ...requests.map((req: any) => ({
@@ -66,7 +101,7 @@ export const guardianLinkingService = {
       ];
       
       return {
-        currentRole: user.identity === 'guardian' ? 'guardian' : 'dependent',
+        currentRole,
         serials: {
           guardian: user.serialId,
           dependent: user.serialId,
@@ -99,11 +134,7 @@ export const guardianLinkingService = {
   },
 
   async setRole(role: GuardianRole): Promise<GuardianLinkingState> {
-    const user = getUser();
-    if (user) {
-      setUser({ ...user, identity: role });
-    }
-
+    setStoredLinkingRole(role);
     return this.getState();
   },
 
@@ -117,13 +148,14 @@ export const guardianLinkingService = {
     }
 
     try {
+      const { currentRole } = await this.getState();
       const response = await fetch(`${GUARDIAN_API_BASE_URL}/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fromUserId: user.id,
           toSerialId: targetSerial,
-          type: user.identity === 'guardian' ? 'guardian' : 'dependent',
+          type: currentRole,
         }),
       });
 

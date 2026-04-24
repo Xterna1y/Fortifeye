@@ -21,9 +21,23 @@ export const getGuardianAlerts = async (req, res) => {
   }
 };
 
+export const getDependentAlerts = async (req, res) => {
+  try {
+    const alerts = await alertService.getAlertsByDependent(req.params.dependentId);
+    res.json(alerts);
+  } catch (error) {
+    console.error("Error fetching dependent alerts:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export const updateStatus = async (req, res) => {
   try {
-    const alert = await alertService.updateAlertStatus(req.params.id, req.body.status);
+    const alert = await alertService.updateAlertStatus(
+      req.params.id,
+      req.body.status,
+      req.body.decisionReason,
+    );
 
     if (!alert) {
       return res.status(404).json({ message: "Alert not found" });
