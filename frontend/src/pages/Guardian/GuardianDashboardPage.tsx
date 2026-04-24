@@ -3,7 +3,6 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Ban,
-  Bell,
   CheckCircle,
   Shield,
   User,
@@ -36,7 +35,7 @@ function formatRelativeTime(value?: string) {
 export default function GuardianDashboardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'requests'>('overview');
   const [requests, setRequests] = useState<TransactionRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [decisionDrafts, setDecisionDrafts] = useState<Record<string, string>>({});
@@ -69,9 +68,11 @@ export default function GuardianDashboardPage() {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'overview' || tab === 'requests' || tab === 'settings') {
+    if (tab === 'overview' || tab === 'requests') {
       setActiveTab(tab);
+      return;
     }
+    setActiveTab('overview');
   }, [searchParams]);
 
   useEffect(() => {
@@ -160,13 +161,12 @@ export default function GuardianDashboardPage() {
     await updateLinkNickname(requestId, nickname);
   };
 
-  const tabs: Array<{ key: 'overview' | 'requests' | 'settings'; label: string }> = [
+  const tabs: Array<{ key: 'overview' | 'requests'; label: string }> = [
     { key: 'overview', label: 'Overview' },
     { key: 'requests', label: 'Transaction Requests' },
-    { key: 'settings', label: 'Settings' },
   ];
 
-  const handleTabChange = (tab: 'overview' | 'requests' | 'settings') => {
+  const handleTabChange = (tab: 'overview' | 'requests') => {
     setActiveTab(tab);
     setSearchParams({ tab });
   };
@@ -468,86 +468,6 @@ export default function GuardianDashboardPage() {
         </div>
       )}
 
-      {activeTab === 'settings' && (
-        <div className="space-y-6">
-          <GlassPanel title="Protected People Settings">
-            <div className="space-y-4">
-              {protectedPeople.length === 0 ? (
-                <EmptyState
-                  icon={User}
-                  title="No linked dependents yet"
-                  description="Dependent nicknames and link management will appear here after someone connects to this guardian."
-                />
-              ) : (
-                protectedPeople.map((person) => (
-                  <div
-                    key={person.requestId}
-                    className="flex flex-col gap-3 rounded-xl bg-slate-900/50 p-4 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-white">
-                        {person.nickname || person.name || person.serial}
-                      </p>
-                      <p className="text-sm text-slate-400">{person.email || person.serial}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() =>
-                          handleEditNickname(person.requestId, person.nickname, person.name)
-                        }
-                        variant="secondary"
-                        className="px-3 py-2 text-xs"
-                      >
-                        Edit nickname
-                      </Button>
-                      <Button
-                        onClick={() => removeLink(person.requestId)}
-                        variant="danger"
-                        className="px-3 py-2 text-xs"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </GlassPanel>
-
-          <GlassPanel title="Guardian Notifications">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Bell className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Pending Reviews</p>
-                    <p className="text-sm text-slate-400">
-                      Incoming dependent requests waiting for action.
-                    </p>
-                  </div>
-                </div>
-                <span className="text-sm font-semibold text-amber-400">
-                  {pendingRequests.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-900/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="font-medium text-white">Reviewed Requests</p>
-                    <p className="text-sm text-slate-400">
-                      Approvals and denials stay synced with the request history.
-                    </p>
-                  </div>
-                </div>
-                <span className="text-sm font-semibold text-emerald-400">
-                  {approvedRequests.length + blockedRequests.length}
-                </span>
-              </div>
-            </div>
-          </GlassPanel>
-        </div>
-      )}
     </div>
   );
 }

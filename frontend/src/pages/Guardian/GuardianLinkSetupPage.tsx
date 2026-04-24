@@ -260,18 +260,6 @@ export default function GuardianLinkSetupPage() {
           </div>
         </GlassPanel>
 
-        <GlassPanel
-          title="How The Live Flow Works"
-          description="This version keeps the hz UX but uses the real guardian-link backend."
-        >
-          <ul className="space-y-3 text-sm text-slate-300">
-            <li>1. Pick the role this account should use before you send a request.</li>
-            <li>2. Share the generated serial ID with the other user.</li>
-            <li>3. Send the request to the matching serial for the opposite role.</li>
-            <li>4. Accept requests with a custom nickname so guardians can label linked users clearly.</li>
-            <li>5. Edit the nickname later or remove the link without losing the live backend state.</li>
-          </ul>
-        </GlassPanel>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
