@@ -26,7 +26,12 @@ export const getGuardianForUser = (userId) => {
   return dependent ? dependent.guardianId : null;
 };
 
-export const createLinkingRequest = async (fromUserId, toSerialId, type) => {
+export const createLinkingRequest = async (
+  fromUserId,
+  toSerialId,
+  type,
+  senderNickname = null,
+) => {
   if (!db) throw new Error("Firebase not configured.");
 
   const usersRef = db.collection("users");
@@ -58,6 +63,7 @@ export const createLinkingRequest = async (fromUserId, toSerialId, type) => {
     fromUserId,
     toUserId,
     type,
+    senderNickname: typeof senderNickname === "string" ? senderNickname.trim() : null,
     status: "pending",
     createdAt: new Date().toISOString(),
   };
@@ -85,6 +91,7 @@ export const getPendingRequests = async (userId) => {
       ...data,
       requesterEmail: requesterData?.email,
       requesterName: requesterData?.name,
+      requesterSerial: requesterData?.serialId,
     });
   }
   return requests;
@@ -106,11 +113,22 @@ export const handleLinkingRequest = async (requestId, status, nickname = null) =
   if (status === "accepted") {
     const guardianId = requestData.type === "guardian" ? requestData.fromUserId : requestData.toUserId;
     const childId = requestData.type === "guardian" ? requestData.toUserId : requestData.fromUserId;
+    const senderNickname =
+      typeof requestData.senderNickname === "string"
+        ? requestData.senderNickname.trim()
+        : "";
+    const receiverNickname = typeof nickname === "string" ? nickname.trim() : "";
+
+    const guardianNickname =
+      requestData.type === "dependent" ? senderNickname : receiverNickname;
+    const dependentNickname =
+      requestData.type === "guardian" ? senderNickname : receiverNickname;
 
     await db.collection("protectedPersons").add({
       guardianId,
       childId,
-      nickname: nickname || "Protected Person",
+      guardianNickname: guardianNickname || null,
+      dependentNickname: dependentNickname || null,
       linkedAt: new Date().toISOString(),
     });
 
@@ -145,6 +163,7 @@ export const getLinks = async (userId) => {
       otherUserEmail: childData?.email,
       otherUserName: childData?.name,
       otherUserSerial: childData?.serialId,
+      nickname: data.dependentNickname || null,
       role: "dependent",
     });
   }
@@ -159,6 +178,7 @@ export const getLinks = async (userId) => {
       otherUserEmail: guardianData?.email,
       otherUserName: guardianData?.name,
       otherUserSerial: guardianData?.serialId,
+      nickname: data.guardianNickname || null,
       role: "guardian",
     });
   }
@@ -215,8 +235,11 @@ export const updateLinkNickname = async (linkId, userId, nickname) => {
     throw new Error("You do not have permission to update this link.");
   }
 
+  const nicknameField =
+    linkData.guardianId === userId ? "dependentNickname" : "guardianNickname";
+
   await linkRef.update({
-    nickname: trimmedNickname,
+    [nicknameField]: trimmedNickname,
     updatedAt: new Date().toISOString(),
   });
 

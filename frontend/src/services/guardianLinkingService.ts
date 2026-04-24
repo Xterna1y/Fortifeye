@@ -78,10 +78,11 @@ export const guardianLinkingService = {
         ...requests.map((req: any) => ({
           id: req.id,
           requesterRole: req.type,
-          requesterSerial: 'Incoming',
+          requesterSerial: req.requesterSerial || 'Incoming',
           requesterName: req.requesterName,
           requesterEmail: req.requesterEmail,
           targetSerial: user.serialId,
+          senderNickname: req.senderNickname,
           status: req.status,
           createdAt: req.createdAt,
         })),
@@ -138,7 +139,10 @@ export const guardianLinkingService = {
     return this.getState();
   },
 
-  async sendRequest(targetSerialInput: string): Promise<SendRequestResult> {
+  async sendRequest(
+    targetSerialInput: string,
+    senderNickname?: string,
+  ): Promise<SendRequestResult> {
     const user = getUser();
     if (!user) return { ok: false, error: 'User not logged in.' };
 
@@ -156,6 +160,7 @@ export const guardianLinkingService = {
           fromUserId: user.id,
           toSerialId: targetSerial,
           type: currentRole,
+          senderNickname,
         }),
       });
 

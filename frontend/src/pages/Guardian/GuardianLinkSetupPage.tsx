@@ -56,6 +56,7 @@ export default function GuardianLinkSetupPage() {
   const [requestFeedback, setRequestFeedback] = useState<string | null>(null);
   const [requestFeedbackTone, setRequestFeedbackTone] = useState<'success' | 'error'>('success');
   const [inputError, setInputError] = useState<string | null>(null);
+  const [senderNicknameInput, setSenderNicknameInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const roleTabs: Array<{ key: GuardianRole; label: string }> = [
@@ -79,7 +80,7 @@ export default function GuardianLinkSetupPage() {
     setInputError(null);
     setRequestFeedback(null);
 
-    const result = await sendRequest(targetSerialInput);
+    const result = await sendRequest(targetSerialInput, senderNicknameInput.trim() || undefined);
     setIsSubmitting(false);
 
     if (!result.ok) {
@@ -92,6 +93,7 @@ export default function GuardianLinkSetupPage() {
     setRequestFeedbackTone('success');
     setRequestFeedback(`Link request sent to ${targetSerialInput.trim().toUpperCase()}.`);
     setTargetSerialInput('');
+    setSenderNicknameInput('');
   };
 
   const handleAcceptRequest = async (
@@ -233,6 +235,19 @@ export default function GuardianLinkSetupPage() {
               error={inputError ?? undefined}
               leading={<Fingerprint className="h-4 w-4" />}
             />
+            <InputField
+              id="guardian-link-sender-nickname"
+              label={`Nickname for this ${targetRole}`}
+              value={senderNicknameInput}
+              onChange={(event) => setSenderNicknameInput(event.target.value)}
+              placeholder={
+                targetRole === 'guardian'
+                  ? 'How you want this guardian to appear'
+                  : 'How you want this dependent to appear'
+              }
+              helperText={`This nickname is your own label for the ${targetRole}. They can still choose a separate nickname for you when accepting.`}
+              leading={targetRole === 'guardian' ? <Shield className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}
+            />
             <Button onClick={handleSendRequest} fullWidth disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MailPlus className="h-5 w-5" />}
               Send Link Request
@@ -282,8 +297,11 @@ export default function GuardianLinkSetupPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-white">
-                            {request.requesterName ||
-                              request.requesterEmail ||
+                            {request.requesterEmail ||
+                              (request.requesterName &&
+                              request.requesterName.trim().toLowerCase() !== 'new user'
+                                ? request.requesterName
+                                : undefined) ||
                               request.requesterSerial}
                           </p>
                           <StatusBadge tone="warning">Pending</StatusBadge>

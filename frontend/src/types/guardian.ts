@@ -8,6 +8,7 @@ export interface GuardianLinkRequest {
   requesterName?: string;
   requesterEmail?: string;
   targetSerial: string;
+   senderNickname?: string;
   status: 'pending' | 'accepted' | 'declined';
   nickname?: string;
   createdAt: string;

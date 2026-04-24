@@ -2,12 +2,17 @@ import * as guardianService from "./guardian.service.js";
 
 export const sendRequest = async (req, res) => {
   try {
-    const { fromUserId, toSerialId, type } = req.body;
+    const { fromUserId, toSerialId, type, senderNickname } = req.body;
     if (!fromUserId || !toSerialId || !type) {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
-    const request = await guardianService.createLinkingRequest(fromUserId, toSerialId, type);
+    const request = await guardianService.createLinkingRequest(
+      fromUserId,
+      toSerialId,
+      type,
+      senderNickname,
+    );
     res.status(201).json(request);
   } catch (error) {
     res.status(400).json({ message: error.message });
